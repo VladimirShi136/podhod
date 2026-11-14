@@ -1,0 +1,14 @@
+# Нативный сплеш (показывается до запуска Flutter). Запуск: dart run flutter_native_splash:create
+#
+# Здесь только цвет обложки, без картинки. Логотип, название и анимацию
+# открытия рисует сам Flutter (lib/notebook/book_cover.dart), поэтому
+# для пользователя «нативного» экрана как бы нет: он просто коричневый.
+flutter_native_splash:
+  color: "#6B4A2F"
+
+  # Android 12+ всегда показывает системный сплеш с иконкой по центру,
+  # отключить его нельзя. Поэтому иконка здесь прозрачная, а фон цвета обложки.
+  android_12:
+    color: "#6B4A2F"
+    image: assets/splash/splash_empty_android12.png
+    icon_background_color: "#6B4A2F"

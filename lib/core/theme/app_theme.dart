@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
-/// Шрифты приложения.
-/// hand — рукописный (заголовки, цифры), body — «тетрадный» текст с кириллицей.
+/// Шрифты приложения лежат в assets/fonts и объявлены в pubspec.yaml,
+/// поэтому работают сразу и без интернета.
+///
+/// hand — рукописный Caveat (заголовки, цифры),
+/// body — «тетрадный» Neucha с кириллицей.
 class AppText {
   AppText._();
+
+  static const String handFamily = 'Caveat';
+  static const String bodyFamily = 'Neucha';
 
   static TextStyle hand(
     double size, {
     Color color = AppColors.ink,
     FontWeight weight = FontWeight.w700,
   }) =>
-      GoogleFonts.caveat(
+      TextStyle(
+        fontFamily: handFamily,
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -21,7 +27,7 @@ class AppText {
       );
 
   static TextStyle body(double size, {Color color = AppColors.ink}) =>
-      GoogleFonts.neucha(fontSize: size, color: color);
+      TextStyle(fontFamily: bodyFamily, fontSize: size, color: color);
 }
 
 ThemeData buildAppTheme() {
@@ -39,11 +45,9 @@ ThemeData buildAppTheme() {
     scaffoldBackgroundColor: AppColors.cover,
   );
 
-  // google_fonts 9 возвращает TextTheme из другого пакета, поэтому применяем
-  // семейство шрифта к стандартной теме Flutter через apply().
   return base.copyWith(
     textTheme: base.textTheme.apply(
-      fontFamily: GoogleFonts.neucha().fontFamily,
+      fontFamily: AppText.bodyFamily,
       bodyColor: AppColors.ink,
       displayColor: AppColors.ink,
     ),
