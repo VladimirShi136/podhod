@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/paper_page.dart';
+import '../data/providers.dart';
 import '../features/calendar/calendar_page.dart';
 import '../features/programs/programs_page.dart';
 import '../features/progress/progress_page.dart';
@@ -62,17 +65,17 @@ const _bookRadius = BorderRadius.only(
 /// 1 — вторая и т. д. Дробное значение означает «страница в процессе
 /// перелистывания». Страница i повёрнута на угол, пропорциональный
 /// clamp(_pos - i, 0, 1).
-class NotebookScreen extends StatefulWidget {
+class NotebookScreen extends ConsumerStatefulWidget {
   const NotebookScreen({super.key, this.playIntro = true});
 
   /// Показывать ли обложку при запуске (в тестах можно отключить).
   final bool playIntro;
 
   @override
-  State<NotebookScreen> createState() => _NotebookScreenState();
+  ConsumerState<NotebookScreen> createState() => _NotebookScreenState();
 }
 
-class _NotebookScreenState extends State<NotebookScreen>
+class _NotebookScreenState extends ConsumerState<NotebookScreen>
     with TickerProviderStateMixin {
   late final AnimationController _pos =
       AnimationController.unbounded(vsync: this, value: 0);
@@ -90,12 +93,22 @@ class _NotebookScreenState extends State<NotebookScreen>
   @override
   void initState() {
     super.initState();
-    if (widget.playIntro) {
-      // Пока обложка «загружается». Позже здесь будем ждать открытия базы данных.
-      _load.forward().then((_) {
-        if (mounted) _intro.forward();
-      });
+    if (widget.playIntro) _runIntro();
+  }
+
+  /// Обложка «загружается» минимум 1,4 с и ждёт, пока откроется база данных,
+  /// затем открывается. Если база не открылась, ошибка пишется в консоль,
+  /// а обложка всё равно открывается, чтобы не зависнуть на экране.
+  Future<void> _runIntro() async {
+    try {
+      await Future.wait([
+        _load.forward(),
+        ref.read(appInitProvider.future).timeout(const Duration(seconds: 10)),
+      ]);
+    } catch (e, s) {
+      debugPrint('Ошибка запуска: $e\n$s');
     }
+    if (mounted) _intro.forward();
   }
 
   // Страницы с бумагой создаются один раз, чтобы не перестраиваться на каждом кадре.

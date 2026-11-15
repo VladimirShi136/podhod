@@ -1,39 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/date_format.dart';
+import '../../core/utils/day_key.dart';
+import '../../core/utils/plural.dart';
+import '../../core/widgets/input_dialogs.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../data/providers.dart';
+import '../../data/repositories/models.dart';
 import '../../notebook/page_header.dart';
+import 'exercise_picker_sheet.dart';
+import 'exercise_row.dart';
+import 'exercise_sheet.dart';
+import 'today_providers.dart';
 
-/// Страница «Сегодня». Пока демо-данные: настоящие подключим на этапе 4.
-class TodayPage extends StatefulWidget {
+const _moods = ['😫', '😕', '😐', '🙂', '💪'];
+
+/// Страница «Сегодня»: тренировка выбранного дня из базы данных.
+class TodayPage extends ConsumerStatefulWidget {
   const TodayPage({super.key});
 
   @override
-  State<TodayPage> createState() => _TodayPageState();
+  ConsumerState<TodayPage> createState() => _TodayPageState();
 }
 
-class _Item {
-  _Item(this.name, this.reps, {this.done = false, this.record = false});
+class _TodayPageState extends ConsumerState<TodayPage>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
-  final String name;
-  final String reps;
-  bool done;
-  final bool record;
-}
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-class _TodayPageState extends State<TodayPage> {
-  final _items = <_Item>[
-    _Item('Отжимания', '4×15', done: true),
-    _Item('Приседания', '4×20'),
-    _Item('Подтягивания', '3×8', record: true),
-    _Item('Планка', '3×60с'),
-  ];
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(selectedDayProvider.notifier).refreshToday();
+      ref.invalidate(streakProvider);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Если контента больше, чем места, страница прокручивается;
-    // если места хватает, кнопка «прижимается» к низу.
+    final day = ref.watch(selectedDayProvider);
+    final details = ref.watch(workoutDayProvider).value;
+    final streak = ref.watch(streakProvider);
+    final number = ref.watch(workoutNumberProvider);
+    final repo = ref.read(workoutRepositoryProvider);
+    final workout = details?.workout;
+    final isToday = day == dayKey(DateTime.now());
+    final date = parseDayKey(day);
+
     return CustomScrollView(
       slivers: [
         SliverFillRemaining(
@@ -41,64 +66,186 @@ class _TodayPageState extends State<TodayPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const PageHeader(title: 'Суббота, 14 ноября'),
+              PageHeader(title: formatDayTitle(date), wrapTitle: true),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  Text('Тренировка №1', style: AppText.body(15)),
-                  const Sticker('🔥 серия: 1 день'),
+                  Text('Тренировка №$number', style: AppText.body(15)),
+                  if (streak > 0)
+                    Sticker(
+                      '🔥 серия: $streak '
+                      '${plural(streak, 'день', 'дня', 'дней')}',
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
-              Text('Сегодня', style: AppText.hand(24)),
-              for (final item in _items)
-                SizedBox(
-                  height: 56,
-                  child: Row(
-                    children: [
-                      HandCheckbox(
-                        checked: item.done,
-                        onChanged: (v) => setState(() => item.done = v),
+              Text(
+                isToday ? 'Сегодня' : formatDayShort(date),
+                style: AppText.hand(24),
+              ),
+              if (details != null)
+                for (final item in details.exercises)
+                  ExerciseRow(
+                    key: ValueKey(item.entry.id),
+                    details: item,
+                    day: day,
+                    onOpen: () => showExerciseSheet(
+                      context,
+                      entryId: item.entry.id,
+                      day: day,
+                    ),
+                  ),
+              SizedBox(
+                height: 56,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showExercisePicker(context, day: day),
+                    child: Text(
+                      '+ добавить упражнение',
+                      style: AppText.body(
+                        19,
+                        color: AppColors.ink.withValues(alpha: 0.7),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          children: [
-                            Text(
-                              item.name,
-                              style: AppText.body(20).copyWith(
-                                decoration: item.done
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                decorationColor: AppColors.red,
-                                decorationThickness: 2,
-                                color: item.done
-                                    ? AppColors.ink.withValues(alpha: 0.6)
-                                    : AppColors.ink,
-                              ),
-                            ),
-                            if (item.record) const Stamp('РЕКОРД'),
-                          ],
-                        ),
-                      ),
-                      Text(item.reps, style: AppText.hand(24)),
-                    ],
+                    ),
                   ),
                 ),
-              const Spacer(),
-              NotebookButton(
-                label: 'Начать тренировку',
-                filled: true,
-                onPressed: () {},
               ),
+              if (workout != null) ...[
+                _MoodRow(
+                  mood: workout.mood,
+                  onChanged: (m) => repo.setMood(workout.id, m),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () async {
+                    final text = await askText(
+                      context,
+                      title: 'Заметка',
+                      initial: workout.note,
+                      hint: 'Как прошла тренировка?',
+                    );
+                    if (text != null)
+                      await repo.setNote(workout.id, text.trim());
+                  },
+                  child: SizedBox(
+                    height: 56,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        workout.note.isEmpty
+                            ? '✎ заметка…'
+                            : '✎ ${workout.note}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body(
+                          17,
+                          color: AppColors.ink.withValues(
+                            alpha: workout.note.isEmpty ? 0.5 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (workout.startedAt != null)
+                  Text(_timeInfo(workout), style: AppText.body(14)),
+              ],
+              const Spacer(),
+              const SizedBox(height: 8),
+              _mainButton(day, details),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  String _timeInfo(dynamic workout) {
+    final start = workout.startedAt as DateTime;
+    final end = workout.finishedAt as DateTime?;
+    if (end == null) return 'Начало: ${formatTime(start)}';
+    final minutes = end.difference(start).inMinutes;
+    return 'Длительность: $minutes мин (${formatTime(start)}–${formatTime(end)})';
+  }
+
+  Widget _mainButton(String day, WorkoutDetails? details) {
+    final repo = ref.read(workoutRepositoryProvider);
+    final workout = details?.workout;
+
+    if (workout == null || details!.isEmpty) {
+      return NotebookButton(
+        label: 'Начать тренировку',
+        filled: true,
+        onPressed: () => showExercisePicker(context, day: day),
+      );
+    }
+    if (workout.finishedAt != null) {
+      return NotebookButton(
+        label: 'Тренировка завершена ✓ · продолжить',
+        onPressed: () => repo.reopenWorkout(workout.id),
+      );
+    }
+    if (workout.startedAt == null) {
+      return NotebookButton(
+        label: 'Начать тренировку',
+        filled: true,
+        onPressed: () => repo.startWorkout(workout.id),
+      );
+    }
+    return NotebookButton(
+      label: 'Завершить тренировку',
+      filled: true,
+      onPressed: () => repo.finishWorkout(workout.id),
+    );
+  }
+}
+
+class _MoodRow extends StatelessWidget {
+  const _MoodRow({required this.mood, required this.onChanged});
+
+  final int? mood;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      child: Row(
+        children: [
+          Text('Самочувствие', style: AppText.body(16)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < _moods.length; i++)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(mood == i + 1 ? null : i + 1),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Opacity(
+                          opacity: mood == null || mood == i + 1 ? 1 : 0.3,
+                          child: Text(
+                            _moods[i],
+                            style: const TextStyle(fontSize: 26),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

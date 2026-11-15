@@ -14,53 +14,56 @@ class PageHeader extends StatelessWidget {
     this.subtitle,
     this.showGear = true,
     this.showBack = false,
+    this.wrapTitle = false,
   });
 
   final String title;
   final String? subtitle;
   final bool showGear;
   final bool showBack;
+  final bool wrapTitle;
 
   @override
   Widget build(BuildContext context) {
     final scope = NotebookScope.of(context);
+    final titleRow = Row(
+      children: [
+        if (showBack) ...[
+          _CircleButton(
+            icon: Icons.arrow_back,
+            tooltip: 'Назад',
+            onTap: scope.goBack,
+          ),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          child: Text(
+            title,
+            maxLines: wrapTitle ? null : 1,
+            overflow: wrapTitle ? null : TextOverflow.ellipsis,
+            style: AppText.hand(30),
+          ),
+        ),
+        if (showGear)
+          _CircleButton(
+            icon: Icons.settings_outlined,
+            tooltip: 'Настройки',
+            onTap: () => scope.goTo(kSettingsPage),
+          ),
+      ],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 44,
-          child: Row(
-            children: [
-              if (showBack) ...[
-                _CircleButton(
-                  icon: Icons.arrow_back,
-                  tooltip: 'Назад',
-                  onTap: scope.goBack,
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.hand(30),
-                ),
-              ),
-              if (showGear)
-                _CircleButton(
-                  icon: Icons.settings_outlined,
-                  tooltip: 'Настройки',
-                  onTap: () => scope.goTo(kSettingsPage),
-                ),
-            ],
-          ),
-        ),
+        if (wrapTitle) titleRow else SizedBox(height: 44, child: titleRow),
         if (subtitle != null)
           Text(
             subtitle!,
-            style: AppText.body(15, color: AppColors.ink.withValues(alpha: 0.7)),
+            style: AppText.body(
+              15,
+              color: AppColors.ink.withValues(alpha: 0.7),
+            ),
           ),
       ],
     );
