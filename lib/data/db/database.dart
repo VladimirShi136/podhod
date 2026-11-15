@@ -9,7 +9,16 @@ import 'tables.dart';
 // Файл создаёт build_runner: dart run build_runner build
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Exercises, Workouts, WorkoutExercises, WorkoutSets])
+@DriftDatabase(
+  tables: [
+    Exercises,
+    Workouts,
+    WorkoutExercises,
+    WorkoutSets,
+    Programs,
+    ProgramExercises,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   /// Без аргументов открывает файл на устройстве.
   /// В тестах сюда передают базу в памяти.
@@ -17,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Увеличивайте при каждом изменении таблиц и добавляйте шаг в [migration].
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -26,8 +35,11 @@ class AppDatabase extends _$AppDatabase {
           await seedExercises(this);
         },
         onUpgrade: (m, from, to) async {
-          // Шаги миграций появятся вместе с новыми таблицами
-          // (программы, замеры, настройки).
+          if (from < 2) {
+            // Версия 2: программы тренировок.
+            await m.createTable(programs);
+            await m.createTable(programExercises);
+          }
         },
         beforeOpen: (details) async {
           // Без этого SQLite не будет выполнять каскадное удаление.

@@ -9,6 +9,7 @@ import '../../data/db/database.dart';
 import '../../data/db/enums.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/models.dart';
+import 'rest_timer.dart';
 import 'set_bubble.dart';
 import 'sets_format.dart';
 import 'today_providers.dart';
@@ -77,6 +78,7 @@ class ExerciseSheet extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const RestTimerBar(),
               Text(details.exercise.name, style: AppText.hand(32)),
               Text(
                 '${details.exercise.muscleGroup.label} · ${kind.label}',
@@ -95,6 +97,7 @@ class ExerciseSheet extends ConsumerWidget {
                   index: i,
                   set: details.sets[i],
                   isTime: isTime,
+                  day: day,
                 ),
               const SizedBox(height: 8),
               Row(
@@ -159,11 +162,13 @@ class _SetEditor extends ConsumerWidget {
     required this.index,
     required this.set,
     required this.isTime,
+    required this.day,
   });
 
   final int index;
   final WorkoutSet set;
   final bool isTime;
+  final String day;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -186,7 +191,7 @@ class _SetEditor extends ConsumerWidget {
             number: index + 1,
             done: set.done,
             size: 28,
-            onTap: () => repo.toggleSet(set.id),
+            onTap: () => toggleSetWithRest(ref, set, day),
           ),
           const Spacer(),
           IconButton(

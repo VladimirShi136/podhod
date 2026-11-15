@@ -220,6 +220,7 @@ class WorkoutRepository {
         ]);
       });
 
+      await reopenWorkout(workoutId);
       return entryId;
     });
   }
@@ -263,6 +264,7 @@ class WorkoutRepository {
             ),
           );
       await _syncEntryDone(entryId);
+      await _reopenByEntry(entryId);
       return id;
     });
   }
@@ -288,6 +290,7 @@ class WorkoutRepository {
       await (_db.update(_db.workoutSets)..where((s) => s.id.equals(setId)))
           .write(WorkoutSetsCompanion(done: Value(!row.done)));
       await _syncEntryDone(row.workoutExerciseId);
+      await _reopenByEntry(row.workoutExerciseId);
     });
   }
 
@@ -315,6 +318,17 @@ class WorkoutRepository {
   Future<void> finishWorkout(int workoutId) {
     return (_db.update(_db.workouts)..where((w) => w.id.equals(workoutId)))
         .write(WorkoutsCompanion(finishedAt: Value(DateTime.now())));
+  }
+
+  /// Снимает «завершена» с тренировки, в которой правят подходы:
+  /// время окончания сбросится и посчитается заново при следующем завершении.
+  Future<void> _reopenByEntry(int entryId) {
+    return _db.customUpdate(
+      'UPDATE workouts SET finished_at = NULL WHERE id = '
+      '(SELECT workout_id FROM workout_exercises WHERE id = ?)',
+      variables: [Variable.withInt(entryId)],
+      updates: {_db.workouts},
+    );
   }
 
   Future<void> reopenWorkout(int workoutId) {

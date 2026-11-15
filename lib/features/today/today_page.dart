@@ -14,6 +14,7 @@ import '../../notebook/page_header.dart';
 import 'exercise_picker_sheet.dart';
 import 'exercise_row.dart';
 import 'exercise_sheet.dart';
+import 'rest_timer.dart';
 import 'today_providers.dart';
 
 const _moods = ['😫', '😕', '😐', '🙂', '💪'];
@@ -56,7 +57,9 @@ class _TodayPageState extends ConsumerState<TodayPage>
     final number = ref.watch(workoutNumberProvider);
     final repo = ref.read(workoutRepositoryProvider);
     final workout = details?.workout;
-    final isToday = day == dayKey(DateTime.now());
+    final todayKey = dayKey(DateTime.now());
+    final isToday = day == todayKey;
+    final isFuture = day.compareTo(todayKey) > 0;
     final date = parseDayKey(day);
 
     return CustomScrollView(
@@ -73,7 +76,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
                 runSpacing: 4,
                 children: [
                   Text('Тренировка №$number', style: AppText.body(15)),
-                  if (streak > 0)
+                  if (isToday && streak > 0)
                     Sticker(
                       '🔥 серия: $streak '
                       '${plural(streak, 'день', 'дня', 'дней')}',
@@ -114,7 +117,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
                   ),
                 ),
               ),
-              if (workout != null) ...[
+              if (workout != null && !isFuture) ...[
                 _MoodRow(
                   mood: workout.mood,
                   onChanged: (m) => repo.setMood(workout.id, m),
@@ -151,12 +154,25 @@ class _TodayPageState extends ConsumerState<TodayPage>
                     ),
                   ),
                 ),
-                if (workout.startedAt != null)
+                if (isToday && workout.startedAt != null)
                   Text(_timeInfo(workout), style: AppText.body(14)),
               ],
               const Spacer(),
               const SizedBox(height: 8),
-              _mainButton(day, details),
+              if (isToday) const RestTimerBar(),
+              if (_mainButton(day, details, isToday, isFuture)
+                  case final Widget button) ...[
+                button,
+                if (!isToday) const SizedBox(height: 10),
+              ],
+              if (!isToday)
+                NotebookButton(
+                  label: 'Вернуться к сегодняшнему дню',
+                  filled: details != null && !details.isEmpty,
+                  onPressed: () => ref
+                      .read(selectedDayProvider.notifier)
+                      .select(todayKey),
+                ),
             ],
           ),
         ),
@@ -172,9 +188,26 @@ class _TodayPageState extends ConsumerState<TodayPage>
     return 'Длительность: $minutes мин (${formatTime(start)}–${formatTime(end)})';
   }
 
-  Widget _mainButton(String day, WorkoutDetails? details) {
+  /// Главная кнопка внизу страницы. Для прошлых и будущих дней таймера
+  /// «начать/завершить» нет: там можно только записать или спланировать
+  /// упражнения, поэтому при уже внесённых упражнениях кнопки нет (null).
+  Widget? _mainButton(
+    String day,
+    WorkoutDetails? details,
+    bool isToday,
+    bool isFuture,
+  ) {
     final repo = ref.read(workoutRepositoryProvider);
     final workout = details?.workout;
+
+    if (!isToday) {
+      if (workout != null && !details!.isEmpty) return null;
+      return NotebookButton(
+        label: isFuture ? 'Запланировать тренировку' : 'Записать тренировку',
+        filled: true,
+        onPressed: () => showExercisePicker(context, day: day),
+      );
+    }
 
     if (workout == null || details!.isEmpty) {
       return NotebookButton(
@@ -184,9 +217,16 @@ class _TodayPageState extends ConsumerState<TodayPage>
       );
     }
     if (workout.finishedAt != null) {
-      return NotebookButton(
-        label: 'Тренировка завершена ✓ · продолжить',
-        onPressed: () => repo.reopenWorkout(workout.id),
+      // Кнопки нет: если дописать упражнение или подход, тренировка
+      // сама станет снова «идущей».
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Center(
+          child: Text(
+            'Тренировка завершена ✓',
+            style: AppText.hand(30, color: AppColors.red),
+          ),
+        ),
       );
     }
     if (workout.startedAt == null) {

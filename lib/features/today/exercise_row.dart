@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/notebook_widgets.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/models.dart';
+import 'rest_timer.dart';
 import 'set_bubble.dart';
 import 'sets_format.dart';
 import 'today_providers.dart';
@@ -88,8 +89,11 @@ class ExerciseRow extends ConsumerWidget {
                                 SetBubble(
                                   number: i + 1,
                                   done: details.sets[i].done,
-                                  onTap: () =>
-                                      repo.toggleSet(details.sets[i].id),
+                                  onTap: () => toggleSetWithRest(
+                                    ref,
+                                    details.sets[i],
+                                    day,
+                                  ),
                                 ),
                             ],
                           ),

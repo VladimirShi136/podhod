@@ -75,3 +75,33 @@ class WorkoutSets extends Table {
 
   BoolColumn get done => boolean().withDefault(const Constant(false))();
 }
+
+/// Программа: сохранённый комплекс упражнений («Понедельник: грудь»).
+class Programs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get name => text().withLength(min: 1, max: 60)();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// Упражнение в программе: сколько подходов и по сколько повторений
+/// (или секунд, если упражнение на время).
+class ProgramExercises extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  IntColumn get programId =>
+      integer().references(Programs, #id, onDelete: KeyAction.cascade)();
+
+  IntColumn get exerciseId =>
+      integer().references(Exercises, #id, onDelete: KeyAction.restrict)();
+
+  /// Порядок в программе (с нуля).
+  IntColumn get position => integer()();
+
+  IntColumn get sets => integer().withDefault(const Constant(3))();
+
+  IntColumn get reps => integer().nullable()();
+
+  IntColumn get seconds => integer().nullable()();
+}
