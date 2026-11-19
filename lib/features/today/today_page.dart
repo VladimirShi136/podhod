@@ -131,8 +131,9 @@ class _TodayPageState extends ConsumerState<TodayPage>
                       initial: workout.note,
                       hint: 'Как прошла тренировка?',
                     );
-                    if (text != null)
+                    if (text != null) {
                       await repo.setNote(workout.id, text.trim());
+                    }
                   },
                   child: SizedBox(
                     height: 56,
