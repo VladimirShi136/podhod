@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../data/repositories/program_repository.dart';
 import '../../notebook/notebook_scope.dart';
 import '../../notebook/page_header.dart';
+import '../catalog/catalog_sheet.dart';
 import '../today/today_providers.dart';
 import 'program_sheet.dart';
 import 'programs_providers.dart';
@@ -68,6 +69,32 @@ class ProgramsPage extends ConsumerWidget {
               else
                 for (final p in programs)
                   _ProgramRow(details: p, onTap: () => open(p.program.id)),
+              const SizedBox(height: 8),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  final scope = NotebookScope.of(context);
+                  showCatalog(
+                    context,
+                    onAddedToday: () {
+                      ref
+                          .read(selectedDayProvider.notifier)
+                          .select(dayKey(DateTime.now()));
+                      scope.goTo(0);
+                    },
+                  );
+                },
+                child: SizedBox(
+                  height: 56,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '📖 Каталог упражнений',
+                      style: AppText.body(19, color: AppColors.red),
+                    ),
+                  ),
+                ),
+              ),
               const Spacer(),
               const SizedBox(height: 12),
               NotebookButton(

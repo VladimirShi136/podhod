@@ -9,17 +9,19 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/day_key.dart';
 import '../../data/db/database.dart';
 import '../../data/providers.dart';
+import '../settings/app_settings.dart';
 
 /// Допустимые значения отдыха по умолчанию, секунды.
 const restPresets = [30, 60, 90, 120, 180];
 
 /// Сколько секунд отдыха запускать после выполненного подхода.
-/// Пока хранится в памяти; сохранение в настройках будет на этапе 10.
+/// Значение хранится в настройках и переживает перезапуск приложения.
 class RestDuration extends Notifier<int> {
   @override
-  int build() => 60;
+  int build() => ref.watch(settingsProvider).restSeconds;
 
-  void set(int seconds) => state = seconds;
+  void set(int seconds) =>
+      ref.read(settingsProvider.notifier).setRestSeconds(seconds);
 }
 
 final restDurationProvider =
