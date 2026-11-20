@@ -25,7 +25,7 @@ Future<void> showCatalog(
     backgroundColor: AppColors.paper,
     showDragHandle: true,
     builder: (_) => FractionallySizedBox(
-      heightFactor: 0.92,
+      heightFactor: 0.9,
       child: CatalogSheet(onAddedToday: onAddedToday),
     ),
   );
@@ -46,8 +46,8 @@ class _CatalogSheetState extends ConsumerState<CatalogSheet> {
   final Set<int> _selected = {};
 
   void _toggle(int id) => setState(() {
-        if (!_selected.remove(id)) _selected.add(id);
-      });
+    if (!_selected.remove(id)) _selected.add(id);
+  });
 
   Future<void> _addSelectedToday() async {
     final workouts = ref.read(workoutRepositoryProvider);
@@ -68,17 +68,16 @@ class _CatalogSheetState extends ConsumerState<CatalogSheet> {
   Future<void> _newCustom() async {
     final data = await showCustomExerciseDialog(context);
     if (data == null) return;
-    await ref.read(exerciseRepositoryProvider).addCustom(
-          name: data.name,
-          group: data.group,
-          kind: data.kind,
-        );
+    await ref
+        .read(exerciseRepositoryProvider)
+        .addCustom(name: data.name, group: data.group, kind: data.kind);
   }
 
   @override
   Widget build(BuildContext context) {
-    final list =
-        ref.watch(exerciseCatalogProvider((group: _group, query: _query)));
+    final list = ref.watch(
+      exerciseCatalogProvider((group: _group, query: _query)),
+    );
     final selecting = _selected.isNotEmpty;
 
     return Padding(
@@ -108,7 +107,11 @@ class _CatalogSheetState extends ConsumerState<CatalogSheet> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _chip('Все', _group == null, () => setState(() => _group = null)),
+                _chip(
+                  'Все',
+                  _group == null,
+                  () => setState(() => _group = null),
+                ),
                 for (final g in MuscleGroup.values)
                   _chip(g.label, _group == g, () => setState(() => _group = g)),
               ],
@@ -119,8 +122,10 @@ class _CatalogSheetState extends ConsumerState<CatalogSheet> {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Нажмите для описания, удерживайте, чтобы выбрать несколько.',
-                style: AppText.body(13,
-                    color: AppColors.ink.withValues(alpha: 0.6)),
+                style: AppText.body(
+                  13,
+                  color: AppColors.ink.withValues(alpha: 0.6),
+                ),
               ),
             ),
           Expanded(
@@ -149,8 +154,10 @@ class _CatalogSheetState extends ConsumerState<CatalogSheet> {
                     subtitle: Text(
                       '${e.muscleGroup.label} · ${e.kind.label}'
                       '${e.isCustom ? ' · своё' : ''}',
-                      style: AppText.body(14,
-                          color: AppColors.ink.withValues(alpha: 0.65)),
+                      style: AppText.body(
+                        14,
+                        color: AppColors.ink.withValues(alpha: 0.65),
+                      ),
                     ),
                     onLongPress: () => _toggle(e.id),
                     onTap: () async {

@@ -15,7 +15,7 @@ Future<Exercise?> chooseExercise(BuildContext context) {
     backgroundColor: AppColors.paper,
     showDragHandle: true,
     builder: (_) => const FractionallySizedBox(
-      heightFactor: 0.85,
+      heightFactor: 0.9,
       child: _Chooser(),
     ),
   );

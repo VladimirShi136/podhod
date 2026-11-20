@@ -26,7 +26,7 @@ Future<bool?> showExerciseInfo(BuildContext context, int exerciseId) {
     backgroundColor: AppColors.paper,
     showDragHandle: true,
     builder: (_) => FractionallySizedBox(
-      heightFactor: 0.88,
+      heightFactor: 0.9,
       child: ExerciseInfoSheet(exerciseId: exerciseId),
     ),
   );

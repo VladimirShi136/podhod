@@ -25,7 +25,10 @@ Future<void> showExerciseSheet(
     isScrollControlled: true,
     backgroundColor: AppColors.paper,
     showDragHandle: true,
-    builder: (_) => ExerciseSheet(entryId: entryId, day: day),
+    builder: (_) => FractionallySizedBox(
+      heightFactor: 0.9,
+      child: ExerciseSheet(entryId: entryId, day: day),
+    ),
   );
 }
 
@@ -59,11 +62,12 @@ class ExerciseSheet extends ConsumerWidget {
     final repo = ref.read(workoutRepositoryProvider);
     final kind = details.exercise.kind;
     final isTime = kind == ExerciseKind.time;
-    final last = ref
-            .watch(lastSetsProvider((details.exercise.id, day)))
-            .value ??
+    final last =
+        ref.watch(lastSetsProvider((details.exercise.id, day))).value ??
         const <WorkoutSet>[];
-    final best = ref.watch(bestBeforeProvider((details.exercise.id, day))).value;
+    final best = ref
+        .watch(bestBeforeProvider((details.exercise.id, day)))
+        .value;
     final bestStr = bestText(best, kind);
 
     return SafeArea(
@@ -82,13 +86,17 @@ class ExerciseSheet extends ConsumerWidget {
               Text(details.exercise.name, style: AppText.hand(32)),
               Text(
                 '${details.exercise.muscleGroup.label} · ${kind.label}',
-                style: AppText.body(15,
-                    color: AppColors.ink.withValues(alpha: 0.7)),
+                style: AppText.body(
+                  15,
+                  color: AppColors.ink.withValues(alpha: 0.7),
+                ),
               ),
               const SizedBox(height: 6),
               if (last.isNotEmpty)
-                Text('Прошлый раз: ${setsSummary(last, kind)}',
-                    style: AppText.body(16)),
+                Text(
+                  'Прошлый раз: ${setsSummary(last, kind)}',
+                  style: AppText.body(16),
+                ),
               if (bestStr != null)
                 Text('Рекорд: $bestStr', style: AppText.body(16)),
               const SizedBox(height: 10),
@@ -106,8 +114,9 @@ class ExerciseSheet extends ConsumerWidget {
                     child: NotebookButton(
                       label: '+ подход',
                       onPressed: () {
-                        final lastSet =
-                            details.sets.isEmpty ? null : details.sets.last;
+                        final lastSet = details.sets.isEmpty
+                            ? null
+                            : details.sets.last;
                         repo.addSet(
                           details.entry.id,
                           reps: isTime ? null : (lastSet?.reps ?? 10),
@@ -125,8 +134,10 @@ class ExerciseSheet extends ConsumerWidget {
                   if (ok == true) await repo.removeExercise(details.entry.id);
                 },
                 icon: const Icon(Icons.delete_outline, color: AppColors.red),
-                label: Text('Убрать из тренировки',
-                    style: AppText.body(16, color: AppColors.red)),
+                label: Text(
+                  'Убрать из тренировки',
+                  style: AppText.body(16, color: AppColors.red),
+                ),
               ),
             ],
           ),
@@ -149,7 +160,10 @@ class ExerciseSheet extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Убрать', style: AppText.body(18, color: AppColors.red)),
+            child: Text(
+              'Убрать',
+              style: AppText.body(18, color: AppColors.red),
+            ),
           ),
         ],
       ),

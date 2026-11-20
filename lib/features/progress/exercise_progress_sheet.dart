@@ -16,7 +16,10 @@ Future<void> showExerciseProgress(BuildContext context, int exerciseId) {
     isScrollControlled: true,
     backgroundColor: AppColors.paper,
     showDragHandle: true,
-    builder: (_) => ExerciseProgressSheet(exerciseId: exerciseId),
+    builder: (_) => FractionallySizedBox(
+      heightFactor: 0.9,
+      child: ExerciseProgressSheet(exerciseId: exerciseId),
+    ),
   );
 }
 

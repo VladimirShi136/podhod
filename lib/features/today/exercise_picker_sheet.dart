@@ -16,7 +16,7 @@ Future<void> showExercisePicker(BuildContext context, {required String day}) {
     backgroundColor: AppColors.paper,
     showDragHandle: true,
     builder: (_) => FractionallySizedBox(
-      heightFactor: 0.85,
+      heightFactor: 0.9,
       child: ExercisePickerSheet(day: day),
     ),
   );

@@ -147,6 +147,37 @@ void main() {
     expect(find.text('Есть невыполненные подходы'), findsOneWidget);
   });
 
+  testWidgets('редактор упражнения ограничен по высоте и прокручивается', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await prepareWorkout(completeSets: false);
+    final entry = (await db.select(db.workoutExercises).get()).single;
+    for (var i = 0; i < 20; i++) {
+      await workouts.addSet(entry.id, reps: 10);
+    }
+    final exercise = (await db.select(db.exercises).get()).first;
+    await pumpTodayPage(tester);
+
+    await tester.tap(find.text(exercise.name));
+    await tester.pumpAndSettle();
+
+    final bottomSheet = find.byType(BottomSheet);
+    expect(tester.getSize(bottomSheet).height, lessThan(620));
+
+    final removeButton = find.text('Убрать из тренировки');
+    await tester.scrollUntilVisible(
+      removeButton,
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(removeButton, findsOneWidget);
+  });
+
   testWidgets('надпись о завершении прокручивается вместе с содержимым', (
     tester,
   ) async {
