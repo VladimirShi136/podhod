@@ -7,6 +7,7 @@ import '../../core/utils/date_format.dart';
 import '../../core/utils/day_key.dart';
 import '../../core/utils/plural.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../notebook/page_header.dart';
 import 'exercise_progress_sheet.dart';
 import 'progress_logic.dart';
@@ -35,19 +36,21 @@ class ProgressPage extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (data.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 24),
-              child: Text(
+            const Padding(
+              padding: EdgeInsets.only(top: kLine),
+              child: LineText(
                 'Здесь появятся итоги и рекорды, когда вы отметите первые '
                 'подходы на странице «Сегодня».',
-                style: AppText.body(18),
+                style: TextStyle(
+                  fontFamily: AppText.bodyFamily,
+                  fontSize: 18,
+                  color: AppColors.ink,
+                ),
               ),
             )
           else ...[
-            const SizedBox(height: 6),
             _Totals(totals: data.totals),
-            const SizedBox(height: 10),
-            Text('Рекорды', style: AppText.hand(28)),
+            LineText('Рекорды', style: AppText.hand(28)),
             for (final e in data.exercises)
               _RecordRow(
                 progress: e,
@@ -55,7 +58,7 @@ class ProgressPage extends ConsumerWidget {
                     now.difference(parseDayKey(e.bestDay)).inDays <= _freshDays,
                 onTap: () => showExerciseProgress(context, e.exerciseId),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: kLine),
           ],
         ],
       ),
@@ -70,13 +73,25 @@ class _Totals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // три строки тетради: число на двух, подпись на третьей
     Widget cell(int n, String label) => Expanded(
-          child: Column(
-            children: [
-              Text('$n', style: AppText.hand(40)),
-              Text(label,
-                  textAlign: TextAlign.center, style: AppText.body(14)),
-            ],
+          child: SizedBox(
+            height: 3 * kLine,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 2 * kLine,
+                  child: Center(child: Text('$n', style: AppText.hand(40))),
+                ),
+                LineText(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppText.body(14),
+                ),
+              ],
+            ),
           ),
         );
 
@@ -111,8 +126,8 @@ class _RecordRow extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 56),
+      child: LineSnap(
+        minLines: 2,
         child: Row(
           children: [
             Expanded(

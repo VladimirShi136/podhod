@@ -209,9 +209,9 @@ String buildJson(ExportData data) {
             for (final i in p.items)
               {
                 'name': i.exercise.name,
-                'sets': i.entry.sets,
-                'reps': i.entry.reps,
-                'seconds': i.entry.seconds,
+                'sets': i.values.length,
+                // повторения (или секунды) каждого подхода
+                'values': i.values,
               },
           ],
         },

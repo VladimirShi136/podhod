@@ -6,9 +6,6 @@ import 'app_settings.dart';
 import 'notification_service.dart';
 import 'reminder_plan.dart';
 
-final notificationServiceProvider =
-    Provider<NotificationService>((ref) => NotificationService());
-
 /// Держит расписание напоминаний в соответствии с настройками и историей.
 /// Следите за ним из корня приложения: ref.watch(reminderSyncProvider).
 final reminderSyncProvider = Provider<void>((ref) {
@@ -17,7 +14,7 @@ final reminderSyncProvider = Provider<void>((ref) {
   final service = ref.read(notificationServiceProvider);
 
   if (!settings.remindersEnabled) {
-    service.cancelAll();
+    service.cancelReminders();
     return;
   }
   if (activeDays == null) return; // ждём загрузки истории

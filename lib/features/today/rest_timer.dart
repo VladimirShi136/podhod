@@ -10,6 +10,7 @@ import '../../core/utils/day_key.dart';
 import '../../data/db/database.dart';
 import '../../data/providers.dart';
 import '../settings/app_settings.dart';
+import '../settings/notification_service.dart';
 
 /// Допустимые значения отдыха по умолчанию, секунды.
 const restPresets = [30, 60, 90, 120, 180];
@@ -24,8 +25,9 @@ class RestDuration extends Notifier<int> {
       ref.read(settingsProvider.notifier).setRestSeconds(seconds);
 }
 
-final restDurationProvider =
-    NotifierProvider<RestDuration, int>(RestDuration.new);
+final restDurationProvider = NotifierProvider<RestDuration, int>(
+  RestDuration.new,
+);
 
 /// Идущий отдых. Хранится время окончания, а не «осталось N секунд»,
 /// поэтому после сворачивания приложения отсчёт остаётся верным.
@@ -45,10 +47,10 @@ class RestState {
   final bool fired;
 
   RestState copyWith({DateTime? endsAt, int? total, bool? fired}) => RestState(
-        endsAt: endsAt ?? this.endsAt,
-        total: total ?? this.total,
-        fired: fired ?? this.fired,
-      );
+    endsAt: endsAt ?? this.endsAt,
+    total: total ?? this.total,
+    fired: fired ?? this.fired,
+  );
 
   Duration remaining(DateTime now) => endsAt.difference(now);
 }
@@ -58,9 +60,13 @@ class RestTimer extends Notifier<RestState?> {
   RestState? build() => null;
 
   void start(int seconds) {
-    state = RestState(
+    final rest = RestState(
       endsAt: DateTime.now().add(Duration(seconds: seconds)),
       total: seconds,
+    );
+    state = rest;
+    unawaited(
+      ref.read(notificationServiceProvider).scheduleRestTimer(rest.endsAt),
     );
   }
 
@@ -70,13 +76,17 @@ class RestTimer extends Notifier<RestState?> {
     if (s == null) return;
     final newEnd = s.endsAt.add(Duration(seconds: deltaSeconds));
     if (!newEnd.isAfter(DateTime.now())) {
-      state = null;
+      stop();
       return;
     }
-    state = s.copyWith(
+    final adjusted = s.copyWith(
       endsAt: newEnd,
       total: (s.total + deltaSeconds).clamp(1, 3600),
       fired: false,
+    );
+    state = adjusted;
+    unawaited(
+      ref.read(notificationServiceProvider).scheduleRestTimer(adjusted.endsAt),
     );
   }
 
@@ -85,11 +95,17 @@ class RestTimer extends Notifier<RestState?> {
     if (s != null && !s.fired) state = s.copyWith(fired: true);
   }
 
-  void stop() => state = null;
+  void stop({bool cancelNotification = true}) {
+    state = null;
+    if (cancelNotification) {
+      unawaited(ref.read(notificationServiceProvider).cancelRestTimer());
+    }
+  }
 }
 
-final restTimerProvider =
-    NotifierProvider<RestTimer, RestState?>(RestTimer.new);
+final restTimerProvider = NotifierProvider<RestTimer, RestState?>(
+  RestTimer.new,
+);
 
 /// Переключает подход и, если он стал выполненным сегодня, запускает отдых.
 Future<void> toggleSetWithRest(
@@ -147,10 +163,10 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
         ref.read(restTimerProvider.notifier).markFired();
         // Сигналим, только если закончилось только что, а не пока приложение
         // было свёрнуто.
-        if (-left.inSeconds <= 3) _signal();
+        if (-left.inSeconds <= 3) unawaited(_signal());
       }
       if (-left.inSeconds >= _lingerSeconds) {
-        ref.read(restTimerProvider.notifier).stop();
+        ref.read(restTimerProvider.notifier).stop(cancelNotification: false);
         return;
       }
     }
@@ -158,7 +174,11 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
   }
 
   Future<void> _signal() async {
-    SystemSound.play(SystemSoundType.alert);
+    try {
+      await SystemSound.play(SystemSoundType.alert);
+    } on PlatformException catch (e) {
+      debugPrint('Не удалось воспроизвести системный сигнал: $e');
+    }
     for (var i = 0; i < 3; i++) {
       HapticFeedback.heavyImpact();
       await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -226,10 +246,7 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
                 _MiniButton('−15 с', () => notifier.adjust(-15)),
                 _MiniButton('+15 с', () => notifier.adjust(15)),
               ],
-              _MiniButton(
-                '$duration с по умолч.',
-                () => _pickDefault(context),
-              ),
+              _MiniButton('$duration с по умолч.', () => _pickDefault(context)),
               _MiniButton(finished ? 'Закрыть' : 'Пропустить', notifier.stop),
             ],
           ),

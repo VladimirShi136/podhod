@@ -87,21 +87,22 @@ class WorkoutRepository {
     int exerciseId, {
     required String beforeDay,
   }) async {
-    final latest = _db.select(_db.workoutExercises).join([
-      innerJoin(
-        _db.workouts,
-        _db.workouts.id.equalsExp(_db.workoutExercises.workoutId),
-      ),
-    ])
-      ..where(
-        _db.workoutExercises.exerciseId.equals(exerciseId) &
-            _db.workouts.day.isSmallerThanValue(beforeDay),
-      )
-      ..orderBy([
-        OrderingTerm.desc(_db.workouts.day),
-        OrderingTerm.desc(_db.workoutExercises.id),
-      ])
-      ..limit(1);
+    final latest =
+        _db.select(_db.workoutExercises).join([
+            innerJoin(
+              _db.workouts,
+              _db.workouts.id.equalsExp(_db.workoutExercises.workoutId),
+            ),
+          ])
+          ..where(
+            _db.workoutExercises.exerciseId.equals(exerciseId) &
+                _db.workouts.day.isSmallerThanValue(beforeDay),
+          )
+          ..orderBy([
+            OrderingTerm.desc(_db.workouts.day),
+            OrderingTerm.desc(_db.workoutExercises.id),
+          ])
+          ..limit(1);
 
     final row = await latest.getSingleOrNull();
     if (row == null) return [];
@@ -165,26 +166,26 @@ class WorkoutRepository {
   /// Добавляет упражнение в конец списка дня и сразу создаёт подходы:
   /// как в прошлый раз (повторения те же, но не отмечены) либо 3 по умолчанию.
   /// Возвращает id записи «упражнение в тренировке».
-  Future<int> addExercise({
-    required int workoutId,
-    required int exerciseId,
-  }) {
+  Future<int> addExercise({required int workoutId, required int exerciseId}) {
     return _db.transaction(() async {
-      final workout = await (_db.select(_db.workouts)
-            ..where((w) => w.id.equals(workoutId)))
-          .getSingle();
-      final exercise = await (_db.select(_db.exercises)
-            ..where((e) => e.id.equals(exerciseId)))
-          .getSingle();
+      final workout = await (_db.select(
+        _db.workouts,
+      )..where((w) => w.id.equals(workoutId))).getSingle();
+      final exercise = await (_db.select(
+        _db.exercises,
+      )..where((e) => e.id.equals(exerciseId))).getSingle();
 
       final maxPosition = _db.workoutExercises.position.max();
-      final positionRow = await (_db.selectOnly(_db.workoutExercises)
-            ..addColumns([maxPosition])
-            ..where(_db.workoutExercises.workoutId.equals(workoutId)))
-          .getSingle();
+      final positionRow =
+          await (_db.selectOnly(_db.workoutExercises)
+                ..addColumns([maxPosition])
+                ..where(_db.workoutExercises.workoutId.equals(workoutId)))
+              .getSingle();
       final nextPosition = (positionRow.read(maxPosition) ?? -1) + 1;
 
-      final entryId = await _db.into(_db.workoutExercises).insert(
+      final entryId = await _db
+          .into(_db.workoutExercises)
+          .insert(
             WorkoutExercisesCompanion.insert(
               workoutId: workoutId,
               exerciseId: exerciseId,
@@ -226,10 +227,12 @@ class WorkoutRepository {
   }
 
   Future<void> removeExercise(int entryId) {
-    // Подходы удалятся каскадом.
-    return (_db.delete(_db.workoutExercises)
-          ..where((e) => e.id.equals(entryId)))
-        .go();
+    return _db.transaction(() async {
+      await _reopenByEntry(entryId);
+      await (_db.delete(
+        _db.workoutExercises,
+      )..where((e) => e.id.equals(entryId))).go();
+    });
   }
 
   /// Отмечает упражнение выполненным (или снимает отметку) вместе со всеми
@@ -242,6 +245,7 @@ class WorkoutRepository {
       await (_db.update(_db.workoutExercises)
             ..where((e) => e.id.equals(entryId)))
           .write(WorkoutExercisesCompanion(done: Value(done)));
+      await _reopenByEntry(entryId);
     });
   }
 
@@ -249,13 +253,16 @@ class WorkoutRepository {
   Future<int> addSet(int entryId, {int? reps, int? seconds}) {
     return _db.transaction(() async {
       final maxIndex = _db.workoutSets.setIndex.max();
-      final row = await (_db.selectOnly(_db.workoutSets)
-            ..addColumns([maxIndex])
-            ..where(_db.workoutSets.workoutExerciseId.equals(entryId)))
-          .getSingle();
+      final row =
+          await (_db.selectOnly(_db.workoutSets)
+                ..addColumns([maxIndex])
+                ..where(_db.workoutSets.workoutExerciseId.equals(entryId)))
+              .getSingle();
       final next = (row.read(maxIndex) ?? -1) + 1;
 
-      final id = await _db.into(_db.workoutSets).insert(
+      final id = await _db
+          .into(_db.workoutSets)
+          .insert(
             WorkoutSetsCompanion.insert(
               workoutExerciseId: entryId,
               setIndex: next,
@@ -271,22 +278,29 @@ class WorkoutRepository {
 
   /// Меняет повторения и/или секунды подхода. Не переданное не трогает.
   Future<void> updateSet(int setId, {int? reps, int? seconds}) {
-    return (_db.update(_db.workoutSets)..where((s) => s.id.equals(setId)))
-        .write(
-      WorkoutSetsCompanion(
-        reps: reps == null ? const Value.absent() : Value(reps),
-        seconds: seconds == null ? const Value.absent() : Value(seconds),
-      ),
-    );
+    return _db.transaction(() async {
+      final set = await (_db.select(
+        _db.workoutSets,
+      )..where((s) => s.id.equals(setId))).getSingle();
+      await (_db.update(
+        _db.workoutSets,
+      )..where((s) => s.id.equals(setId))).write(
+        WorkoutSetsCompanion(
+          reps: reps == null ? const Value.absent() : Value(reps),
+          seconds: seconds == null ? const Value.absent() : Value(seconds),
+        ),
+      );
+      await _reopenByEntry(set.workoutExerciseId);
+    });
   }
 
   /// Переключает «выполнен / не выполнен». Если выполнены все подходы,
   /// упражнение тоже становится выполненным.
   Future<void> toggleSet(int setId) {
     return _db.transaction(() async {
-      final row = await (_db.select(_db.workoutSets)
-            ..where((s) => s.id.equals(setId)))
-          .getSingle();
+      final row = await (_db.select(
+        _db.workoutSets,
+      )..where((s) => s.id.equals(setId))).getSingle();
       await (_db.update(_db.workoutSets)..where((s) => s.id.equals(setId)))
           .write(WorkoutSetsCompanion(done: Value(!row.done)));
       await _syncEntryDone(row.workoutExerciseId);
@@ -296,20 +310,22 @@ class WorkoutRepository {
 
   Future<void> removeSet(int setId) {
     return _db.transaction(() async {
-      final row = await (_db.select(_db.workoutSets)
-            ..where((s) => s.id.equals(setId)))
-          .getSingle();
-      await (_db.delete(_db.workoutSets)..where((s) => s.id.equals(setId)))
-          .go();
+      final row = await (_db.select(
+        _db.workoutSets,
+      )..where((s) => s.id.equals(setId))).getSingle();
+      await (_db.delete(
+        _db.workoutSets,
+      )..where((s) => s.id.equals(setId))).go();
       await _syncEntryDone(row.workoutExerciseId);
+      await _reopenByEntry(row.workoutExerciseId);
     });
   }
 
   /// Ставит время начала, если оно ещё не стоит.
   Future<void> startWorkout(int workoutId) async {
-    final workout = await (_db.select(_db.workouts)
-          ..where((w) => w.id.equals(workoutId)))
-        .getSingle();
+    final workout = await (_db.select(
+      _db.workouts,
+    )..where((w) => w.id.equals(workoutId))).getSingle();
     if (workout.startedAt != null) return;
     await (_db.update(_db.workouts)..where((w) => w.id.equals(workoutId)))
         .write(WorkoutsCompanion(startedAt: Value(DateTime.now())));
@@ -322,13 +338,11 @@ class WorkoutRepository {
 
   /// Снимает «завершена» с тренировки, в которой правят подходы:
   /// время окончания сбросится и посчитается заново при следующем завершении.
-  Future<void> _reopenByEntry(int entryId) {
-    return _db.customUpdate(
-      'UPDATE workouts SET finished_at = NULL WHERE id = '
-      '(SELECT workout_id FROM workout_exercises WHERE id = ?)',
-      variables: [Variable.withInt(entryId)],
-      updates: {_db.workouts},
-    );
+  Future<void> _reopenByEntry(int entryId) async {
+    final entry = await (_db.select(
+      _db.workoutExercises,
+    )..where((e) => e.id.equals(entryId))).getSingleOrNull();
+    if (entry != null) await reopenWorkout(entry.workoutId);
   }
 
   Future<void> reopenWorkout(int workoutId) {
@@ -349,8 +363,9 @@ class WorkoutRepository {
 
   /// Удаляет тренировку вместе с упражнениями и подходами (каскадом).
   Future<void> deleteWorkout(int workoutId) {
-    return (_db.delete(_db.workouts)..where((w) => w.id.equals(workoutId)))
-        .go();
+    return (_db.delete(
+      _db.workouts,
+    )..where((w) => w.id.equals(workoutId))).go();
   }
 
   // ───────────────────────── внутреннее ─────────────────────────
@@ -364,15 +379,16 @@ class WorkoutRepository {
   }
 
   Future<WorkoutDetails> _loadDetails(Workout workout) async {
-    final entryRows = await (_db.select(_db.workoutExercises).join([
-      innerJoin(
-        _db.exercises,
-        _db.exercises.id.equalsExp(_db.workoutExercises.exerciseId),
-      ),
-    ])
-          ..where(_db.workoutExercises.workoutId.equals(workout.id))
-          ..orderBy([OrderingTerm.asc(_db.workoutExercises.position)]))
-        .get();
+    final entryRows =
+        await (_db.select(_db.workoutExercises).join([
+                innerJoin(
+                  _db.exercises,
+                  _db.exercises.id.equalsExp(_db.workoutExercises.exerciseId),
+                ),
+              ])
+              ..where(_db.workoutExercises.workoutId.equals(workout.id))
+              ..orderBy([OrderingTerm.asc(_db.workoutExercises.position)]))
+            .get();
 
     final entryIds = [
       for (final r in entryRows) r.readTable(_db.workoutExercises).id,
@@ -381,9 +397,9 @@ class WorkoutRepository {
     final sets = entryIds.isEmpty
         ? <WorkoutSet>[]
         : await (_db.select(_db.workoutSets)
-              ..where((s) => s.workoutExerciseId.isIn(entryIds))
-              ..orderBy([(s) => OrderingTerm.asc(s.setIndex)]))
-            .get();
+                ..where((s) => s.workoutExerciseId.isIn(entryIds))
+                ..orderBy([(s) => OrderingTerm.asc(s.setIndex)]))
+              .get();
 
     final setsByEntry = <int, List<WorkoutSet>>{};
     for (final s in sets) {
@@ -406,9 +422,9 @@ class WorkoutRepository {
 
   /// Упражнение выполнено, если все его подходы выполнены.
   Future<void> _syncEntryDone(int entryId) async {
-    final sets = await (_db.select(_db.workoutSets)
-          ..where((s) => s.workoutExerciseId.equals(entryId)))
-        .get();
+    final sets = await (_db.select(
+      _db.workoutSets,
+    )..where((s) => s.workoutExerciseId.equals(entryId))).get();
     final allDone = sets.isNotEmpty && sets.every((s) => s.done);
     await (_db.update(_db.workoutExercises)..where((e) => e.id.equals(entryId)))
         .write(WorkoutExercisesCompanion(done: Value(allDone)));

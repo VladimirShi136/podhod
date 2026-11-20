@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
 
   /// Увеличивайте при каждом изменении таблиц и добавляйте шаг в [migration].
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +39,11 @@ class AppDatabase extends _$AppDatabase {
             // Версия 2: программы тренировок.
             await m.createTable(programs);
             await m.createTable(programExercises);
+          }
+          if (from == 2) {
+            // Версия 3: значения каждого подхода программы. При переходе
+            // с версии 1 таблица уже создана сразу с этой колонкой.
+            await m.addColumn(programExercises, programExercises.plan);
           }
         },
         beforeOpen: (details) async {

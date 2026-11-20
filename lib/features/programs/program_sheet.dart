@@ -7,7 +7,6 @@ import '../../core/utils/day_key.dart';
 import '../../core/widgets/day_picker.dart';
 import '../../core/widgets/input_dialogs.dart';
 import '../../core/widgets/notebook_widgets.dart';
-import '../../data/db/enums.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/program_repository.dart';
 import 'exercise_chooser.dart';
@@ -307,23 +306,16 @@ class _ItemRow extends ConsumerWidget {
   }
 
   Future<void> _edit(BuildContext context, ProgramRepository repo) async {
-    final isTime = item.exercise.kind == ExerciseKind.time;
-    final result = await showDialog<(int, int)>(
+    final result = await showDialog<List<int>>(
       context: context,
       builder: (_) => _ItemEditDialog(
         name: item.exercise.name,
-        sets: item.entry.sets,
-        value: isTime ? (item.entry.seconds ?? 30) : (item.entry.reps ?? 10),
-        isTime: isTime,
+        values: item.values,
+        isTime: item.isTime,
       ),
     );
     if (result == null) return;
-    await repo.updateItem(
-      item.entry.id,
-      sets: result.$1,
-      reps: isTime ? null : result.$2,
-      seconds: isTime ? result.$2 : null,
-    );
+    await repo.updateItem(item.entry.id, values: result, isTime: item.isTime);
   }
 }
 
@@ -351,14 +343,12 @@ class _Arrow extends StatelessWidget {
 class _ItemEditDialog extends StatefulWidget {
   const _ItemEditDialog({
     required this.name,
-    required this.sets,
-    required this.value,
+    required this.values,
     required this.isTime,
   });
 
   final String name;
-  final int sets;
-  final int value;
+  final List<int> values;
   final bool isTime;
 
   @override
@@ -366,36 +356,25 @@ class _ItemEditDialog extends StatefulWidget {
 }
 
 class _ItemEditDialogState extends State<_ItemEditDialog> {
-  late int _sets = widget.sets;
-  late int _value = widget.value;
+  late final List<int> _values = [...widget.values];
 
-  Widget _stepper(
-    String label,
-    int value,
-    int step,
-    void Function(int) onChanged, {
-    String suffix = '',
-  }) {
-    return Row(
-      children: [
-        Expanded(child: Text(label, style: AppText.body(18))),
-        IconButton(
-          onPressed: () => onChanged(value - step < 1 ? 1 : value - step),
-          icon: const Icon(Icons.remove_circle_outline),
-          color: AppColors.ink,
-        ),
-        SizedBox(
-          width: 56,
-          child: Text('$value$suffix',
-              textAlign: TextAlign.center, style: AppText.hand(30)),
-        ),
-        IconButton(
-          onPressed: () => onChanged(value + step),
-          icon: const Icon(Icons.add_circle_outline),
-          color: AppColors.ink,
-        ),
-      ],
+  int get _step => widget.isTime ? 5 : 1;
+
+  void _change(int i, int delta) {
+    setState(() {
+      final next = _values[i] + delta;
+      _values[i] = next < 1 ? 1 : next;
+    });
+  }
+
+  Future<void> _typeValue(int i) async {
+    final v = await askNumber(
+      context,
+      title: widget.isTime ? 'Секунды' : 'Повторения',
+      initial: _values[i],
+      suffix: widget.isTime ? 'с' : null,
     );
+    if (v != null && v > 0) setState(() => _values[i] = v);
   }
 
   @override
@@ -403,17 +382,62 @@ class _ItemEditDialogState extends State<_ItemEditDialog> {
     return AlertDialog(
       backgroundColor: AppColors.paper,
       title: Text(widget.name, style: AppText.hand(28)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _stepper('Подходы', _sets, 1, (v) => setState(() => _sets = v)),
-          _stepper(
-            widget.isTime ? 'Секунды' : 'Повторения',
-            _value,
-            widget.isTime ? 5 : 1,
-            (v) => setState(() => _value = v),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _values.length; i++)
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      child: Text('${i + 1}', style: AppText.body(18)),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _change(i, -_step),
+                      icon: const Icon(Icons.remove_circle_outline),
+                      color: AppColors.ink,
+                    ),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _typeValue(i),
+                      child: SizedBox(
+                        width: 64,
+                        child: Text(
+                          widget.isTime ? '${_values[i]} с' : '${_values[i]}',
+                          textAlign: TextAlign.center,
+                          style: AppText.hand(30),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _change(i, _step),
+                      icon: const Icon(Icons.add_circle_outline),
+                      color: AppColors.ink,
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Убрать подход',
+                      onPressed: _values.length > 1
+                          ? () => setState(() => _values.removeAt(i))
+                          : null,
+                      icon: const Icon(Icons.close),
+                      color: AppColors.red,
+                    ),
+                  ],
+                ),
+              TextButton(
+                onPressed: () => setState(() => _values.add(_values.last)),
+                child: Text('+ подход', style: AppText.body(18)),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       actions: [
         TextButton(
@@ -421,7 +445,7 @@ class _ItemEditDialogState extends State<_ItemEditDialog> {
           child: Text('Отмена', style: AppText.body(18)),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop((_sets, _value)),
+          onPressed: () => Navigator.of(context).pop(_values),
           child: Text('Готово', style: AppText.body(18)),
         ),
       ],

@@ -51,7 +51,7 @@ void main() {
     final a = await programs.addExercise(id, pushUps.id);
     final b = await programs.addExercise(id, plank.id);
 
-    await programs.updateItem(a, sets: 4, reps: 15);
+    await programs.updateItem(a, values: [15, 15, 15, 15], isTime: false);
     await programs.moveItem(b, -1);
 
     final d = (await programs.getById(id))!;
@@ -69,7 +69,7 @@ void main() {
     final id = await programs.create('A');
     final a = await programs.addExercise(id, pushUps.id);
     await programs.addExercise(id, plank.id);
-    await programs.updateItem(a, sets: 5, reps: 12);
+    await programs.updateItem(a, values: [12, 12, 12, 12, 12], isTime: false);
 
     final count = await programs.applyToDay(id, '2026-11-16', workouts);
     expect(count, 2);
@@ -98,8 +98,7 @@ void main() {
 
     final id = await programs.createFromWorkout('Моя', (await workouts.getDay('2026-11-15'))!);
     final d = (await programs.getById(id))!;
-    expect(d.items.single.entry.sets, 4);
-    expect(d.items.single.entry.reps, 20);
+    expect(d.items.single.values, [20, 10, 10, 20]);
 
     await programs.delete(id);
     expect(await programs.getById(id), isNull);
@@ -139,5 +138,53 @@ void main() {
     await pumpEventQueue(times: 100);
 
     expect(events.last?.exercises, hasLength(1));
+  });
+  test('программа из тренировки хранит значение каждого подхода', () async {
+    final w = await workouts.ensureWorkout('2026-11-19');
+    final entry =
+        await workouts.addExercise(workoutId: w, exerciseId: pushUps.id);
+    final existing = await (db.select(db.workoutSets)
+          ..where((s) => s.workoutExerciseId.equals(entry)))
+        .get();
+    for (final s in existing) {
+      await workouts.removeSet(s.id);
+    }
+    for (final reps in [6, 7, 10, 11, 8, 8]) {
+      await workouts.addSet(entry, reps: reps);
+    }
+
+    final id = await programs.createFromWorkout(
+      'Подтягивания',
+      (await workouts.getDay('2026-11-19'))!,
+    );
+    final item = (await programs.getById(id))!.items.single;
+    expect(item.values, [6, 7, 10, 11, 8, 8]);
+    expect(item.summary, '6·7·10·11·8·8');
+
+    // в другом дне получаются те же шесть подходов, а не 6×6
+    await programs.applyToDay(id, '2026-11-20', workouts);
+    final day = (await workouts.getDay('2026-11-20'))!;
+    expect(day.exercises.single.sets.map((s) => s.reps),
+        [6, 7, 10, 11, 8, 8]);
+
+    // правка отдельных подходов
+    await programs.updateItem(item.entry.id,
+        values: [6, 7, 10, 11, 8, 9, 9], isTime: false);
+    expect((await programs.getById(id))!.items.single.values,
+        [6, 7, 10, 11, 8, 9, 9]);
+  });
+
+  test('старая программа без plan читается как «подходы × значение»', () async {
+    final id = await programs.create('Старая');
+    final item = await programs.addExercise(id, pushUps.id);
+    await (db.update(db.programExercises)..where((e) => e.id.equals(item)))
+        .write(const ProgramExercisesCompanion(
+      sets: Value(4),
+      reps: Value(12),
+      plan: Value(null),
+    ));
+    final loaded = (await programs.getById(id))!.items.single;
+    expect(loaded.values, [12, 12, 12, 12]);
+    expect(loaded.summary, '4×12');
   });
 }

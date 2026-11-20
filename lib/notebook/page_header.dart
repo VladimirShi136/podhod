@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
+import '../core/widgets/paper_lines.dart';
 import 'notebook_page_def.dart';
 import 'notebook_scope.dart';
 
@@ -27,28 +28,35 @@ class PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = NotebookScope.of(context);
     final titleRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        if (showBack) ...[
-          _CircleButton(
-            icon: Icons.arrow_back,
-            tooltip: 'Назад',
-            onTap: scope.goBack,
-          ),
-          const SizedBox(width: 8),
-        ],
         Expanded(
-          child: Text(
+          // заголовок стоит на линии, каждая его строка — одна строка тетради
+          child: LineText(
             title,
             maxLines: wrapTitle ? null : 1,
             overflow: wrapTitle ? null : TextOverflow.ellipsis,
             style: AppText.hand(30),
           ),
         ),
-        if (showGear)
-          _CircleButton(
-            icon: Icons.settings_outlined,
-            tooltip: 'Настройки',
-            onTap: () => scope.goTo(kSettingsPage),
+        // «назад» стоит там же, где на других страницах шестерёнка
+        if (showBack)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: _CircleButton(
+              icon: Icons.arrow_back,
+              tooltip: 'Назад',
+              onTap: scope.goBack,
+            ),
+          )
+        else if (showGear)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: _CircleButton(
+              icon: Icons.settings_outlined,
+              tooltip: 'Настройки',
+              onTap: () => scope.goTo(kSettingsPage),
+            ),
           ),
       ],
     );
@@ -56,9 +64,13 @@ class PageHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (wrapTitle) titleRow else SizedBox(height: 44, child: titleRow),
+        // две строки тетради, а если заголовок длинный — столько, сколько нужно
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 2 * kLine),
+          child: titleRow,
+        ),
         if (subtitle != null)
-          Text(
+          LineText(
             subtitle!,
             style: AppText.body(
               15,

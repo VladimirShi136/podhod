@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/utils/set_values.dart';
 import '../db/database.dart';
 import '../db/enums.dart';
 import 'models.dart';
@@ -12,12 +13,19 @@ class ProgramItem {
   final ProgramExercise entry;
   final Exercise exercise;
 
-  /// «3×10» или «3×30с».
-  String get summary {
-    final isTime = exercise.kind == ExerciseKind.time;
+  bool get isTime => exercise.kind == ExerciseKind.time;
+
+  /// Значение каждого подхода (повторения или секунды).
+  /// Для программ, созданных до учёта отдельных подходов, все равны.
+  List<int> get values {
+    final plan = decodeSetValues(entry.plan);
+    if (plan != null) return plan;
     final value = isTime ? (entry.seconds ?? 30) : (entry.reps ?? 10);
-    return '${entry.sets}×$value${isTime ? 'с' : ''}';
+    return List.filled(entry.sets < 1 ? 1 : entry.sets, value);
   }
+
+  /// «3×10», «3×30с» или «6·7·10·11».
+  String get summary => formatSetValues(values, isTime: isTime);
 }
 
 class ProgramDetails {
@@ -101,6 +109,11 @@ class ProgramRepository {
               sets: const Value(defaultSets),
               reps: Value(isTime ? null : defaultReps),
               seconds: Value(isTime ? defaultSeconds : null),
+              plan: Value(
+                encodeSetValues(
+                  List.filled(defaultSets, isTime ? defaultSeconds : defaultReps),
+                ),
+              ),
             ),
           );
     });
@@ -112,20 +125,25 @@ class ProgramRepository {
         .go();
   }
 
-  /// Меняет число подходов и повторения (или секунды) упражнения программы.
+  /// Задаёт подходы упражнения программы: по одному значению на подход
+  /// (повторения или секунды, если [isTime]).
   Future<void> updateItem(
     int itemId, {
-    required int sets,
-    int? reps,
-    int? seconds,
+    required List<int> values,
+    required bool isTime,
   }) {
+    final clean = [for (final v in values) v < 1 ? 1 : v];
+    if (clean.isEmpty) {
+      throw ArgumentError.value(values, 'values', 'Нужен хотя бы один подход');
+    }
     return (_db.update(_db.programExercises)
           ..where((e) => e.id.equals(itemId)))
         .write(
       ProgramExercisesCompanion(
-        sets: Value(sets < 1 ? 1 : sets),
-        reps: reps == null ? const Value.absent() : Value(reps),
-        seconds: seconds == null ? const Value.absent() : Value(seconds),
+        sets: Value(clean.length),
+        reps: Value(isTime ? null : clean.first),
+        seconds: Value(isTime ? clean.first : null),
+        plan: Value(encodeSetValues(clean)),
       ),
     );
   }
@@ -160,23 +178,29 @@ class ProgramRepository {
   }
 
   /// Создаёт программу из упражнений тренировки: подходов столько же,
-  /// повторения (секунды) берутся из первого подхода.
+  /// и у каждого подхода своё значение (6, 7, 10, 11…).
   Future<int> createFromWorkout(String name, WorkoutDetails workout) {
     return _db.transaction(() async {
       final id = await create(name);
       var position = 0;
       for (final d in workout.exercises) {
         final isTime = d.exercise.kind == ExerciseKind.time;
-        final first = d.sets.isEmpty ? null : d.sets.first;
+        final fallback = isTime ? defaultSeconds : defaultReps;
+        final values = d.sets.isEmpty
+            ? List.filled(defaultSets, fallback)
+            : [
+                for (final s in d.sets)
+                  ((isTime ? s.seconds : s.reps) ?? fallback),
+              ];
         await _db.into(_db.programExercises).insert(
               ProgramExercisesCompanion.insert(
                 programId: id,
                 exerciseId: d.exercise.id,
                 position: position++,
-                sets: Value(d.sets.isEmpty ? defaultSets : d.sets.length),
-                reps: Value(isTime ? null : (first?.reps ?? defaultReps)),
-                seconds:
-                    Value(isTime ? (first?.seconds ?? defaultSeconds) : null),
+                sets: Value(values.length),
+                reps: Value(isTime ? null : values.first),
+                seconds: Value(isTime ? values.first : null),
+                plan: Value(encodeSetValues(values)),
               ),
             );
       }
@@ -214,13 +238,14 @@ class ProgramRepository {
               ),
             );
         await _db.batch((batch) {
+          final values = item.values;
           batch.insertAll(_db.workoutSets, [
-            for (var i = 0; i < item.entry.sets; i++)
+            for (var i = 0; i < values.length; i++)
               WorkoutSetsCompanion.insert(
                 workoutExerciseId: entryId,
                 setIndex: i,
-                reps: Value(item.entry.reps),
-                seconds: Value(item.entry.seconds),
+                reps: Value(item.isTime ? null : values[i]),
+                seconds: Value(item.isTime ? values[i] : null),
               ),
           ]);
         });

@@ -4,11 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../core/widgets/time_picker.dart';
 import '../../notebook/page_header.dart';
 import '../today/rest_timer.dart';
 import 'app_settings.dart';
-import 'reminder_sync.dart';
+import 'notification_service.dart';
 import 'settings_providers.dart';
 
 const _weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -47,8 +48,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       notifier.setRemindersEnabled(false);
       return;
     }
-    final granted =
-        await ref.read(notificationServiceProvider).requestPermission();
+    final granted = await ref
+        .read(notificationServiceProvider)
+        .requestPermission();
     if (!mounted) return;
     if (granted) {
       notifier.setRemindersEnabled(true);
@@ -91,8 +93,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Стереть',
-                style: AppText.body(18, color: AppColors.red)),
+            child: Text(
+              'Стереть',
+              style: AppText.body(18, color: AppColors.red),
+            ),
           ),
         ],
       ),
@@ -117,32 +121,36 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             showGear: false,
             showBack: true,
           ),
-          const SizedBox(height: 6),
-          Text('Отдых между подходами', style: AppText.hand(26)),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final p in restPresets)
-                ChoiceChip(
-                  label: Text(
-                    p >= 60 && p % 60 == 0 ? '${p ~/ 60} мин' : '$p с',
-                    style: AppText.body(16),
+          LineText('Отдых между подходами', style: AppText.hand(26)),
+          LineSnap(
+            minLines: 2,
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (final p in restPresets)
+                  ChoiceChip(
+                    label: Text(
+                      p >= 60 && p % 60 == 0 ? '${p ~/ 60} мин' : '$p с',
+                      style: AppText.body(16),
+                    ),
+                    selected: settings.restSeconds == p,
+                    selectedColor: AppColors.accent,
+                    backgroundColor: AppColors.paper,
+                    onSelected: (_) => notifier.setRestSeconds(p),
                   ),
-                  selected: settings.restSeconds == p,
-                  selectedColor: AppColors.accent,
-                  backgroundColor: AppColors.paper,
-                  onSelected: (_) => notifier.setRestSeconds(p),
-                ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Text('Напоминания', style: AppText.hand(26)),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('Напоминать о тренировке', style: AppText.body(19)),
-            value: settings.remindersEnabled,
-            activeThumbColor: AppColors.ink,
-            onChanged: _toggleReminders,
+          LineText('Напоминания', style: AppText.hand(26)),
+          SizedBox(
+            height: 2 * kLine,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Напоминать о тренировке', style: AppText.body(19)),
+              value: settings.remindersEnabled,
+              activeThumbColor: AppColors.ink,
+              onChanged: _toggleReminders,
+            ),
           ),
           if (settings.remindersEnabled) ...[
             GestureDetector(
@@ -155,7 +163,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 if (minutes != null) notifier.setReminderMinutes(minutes);
               },
               child: SizedBox(
-                height: 48,
+                height: 2 * kLine,
                 child: Row(
                   children: [
                     Expanded(child: Text('Время', style: AppText.body(19))),
@@ -165,23 +173,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
               ),
             ),
-            Text('По дням', style: AppText.body(15)),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (var d = 1; d <= 7; d++)
-                  ChoiceChip(
-                    label: Text(_weekdayLabels[d - 1], style: AppText.body(16)),
-                    selected: settings.reminderWeekdays.contains(d),
-                    selectedColor: AppColors.accent,
-                    backgroundColor: AppColors.paper,
-                    onSelected: (_) => notifier.toggleWeekday(d),
-                  ),
-              ],
+            LineText('По дням', style: AppText.body(15)),
+            LineSnap(
+              minLines: 2,
+              child: Wrap(
+                spacing: 6,
+                children: [
+                  for (var d = 1; d <= 7; d++)
+                    ChoiceChip(
+                      label: Text(
+                        _weekdayLabels[d - 1],
+                        style: AppText.body(16),
+                      ),
+                      selected: settings.reminderWeekdays.contains(d),
+                      selectedColor: AppColors.accent,
+                      backgroundColor: AppColors.paper,
+                      onSelected: (_) => notifier.toggleWeekday(d),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(
+            LineText(
               'Если в этот день вы уже сделали подход, напоминание не придёт. '
               'Расписание обновляется при каждом открытии приложения.',
               style: AppText.body(
@@ -190,9 +202,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          Text('Данные', style: AppText.hand(26)),
-          const SizedBox(height: 4),
+          LineText('Данные', style: AppText.hand(26)),
           NotebookButton(
             label: 'Резервная копия (JSON)',
             onPressed: _exporting ? null : () => _export(ExportFormat.json),
@@ -205,15 +215,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           TextButton.icon(
             onPressed: _erase,
             icon: const Icon(Icons.delete_outline, color: AppColors.red),
-            label: Text('Стереть все данные',
-                style: AppText.body(16, color: AppColors.red)),
+            label: Text(
+              'Стереть все данные',
+              style: AppText.body(16, color: AppColors.red),
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
+          LineText(
             'Подход · версия 1.0.0\nВсе данные хранятся только на этом телефоне.',
-            style: AppText.body(13, color: AppColors.ink.withValues(alpha: 0.6)),
+            style: AppText.body(
+              13,
+              color: AppColors.ink.withValues(alpha: 0.6),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kLine),
         ],
       ),
     );

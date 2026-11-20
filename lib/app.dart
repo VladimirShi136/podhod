@@ -17,6 +17,12 @@ class PodhodApp extends ConsumerWidget {
       title: 'Подход',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      // Системный масштаб шрифта ограничен, иначе тетрадная сетка «поплывёт».
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        minScaleFactor: 0.9,
+        maxScaleFactor: 1.15,
+        child: child!,
+      ),
       home: const NotebookScreen(),
     );
   }

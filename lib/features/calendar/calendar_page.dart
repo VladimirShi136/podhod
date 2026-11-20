@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/day_key.dart';
 import '../../core/utils/plural.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../notebook/notebook_scope.dart';
 import '../../notebook/page_header.dart';
 import '../today/today_providers.dart';
@@ -64,23 +65,26 @@ class CalendarPage extends ConsumerWidget {
               ],
             ),
           ),
-          Row(
-            children: [
-              for (final w in _weekdayLabels)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      w,
-                      style: AppText.body(14,
-                          color: AppColors.ink.withValues(alpha: 0.6)),
+          SizedBox(
+            height: kLine,
+            child: Row(
+              children: [
+                for (final w in _weekdayLabels)
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        w,
+                        style: AppText.body(14,
+                            color: AppColors.ink.withValues(alpha: 0.6)),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
           for (var row = 0; row < cells.length ~/ 7; row++)
             SizedBox(
-              height: 52,
+              height: 2 * kLine,
               child: Row(
                 children: [
                   for (var col = 0; col < 7; col++)
@@ -107,22 +111,21 @@ class CalendarPage extends ConsumerWidget {
                 ],
               ),
             ),
-          const SizedBox(height: 12),
-          Text(
+          LineText(
             count == 0
                 ? 'В этом месяце тренировок пока нет'
                 : 'В месяце: $count ${plural(count, 'тренировка', 'тренировки', 'тренировок')}',
             style: AppText.body(18),
           ),
           if (streak > 0)
-            Text(
+            LineText(
               'Серия: $streak ${plural(streak, 'день', 'дня', 'дней')} подряд',
               style: AppText.body(16),
             ),
-          const SizedBox(height: 10),
+          // легенда: каждая её строка — одна строка тетради
           const Wrap(
             spacing: 14,
-            runSpacing: 4,
+            runSpacing: 0,
             children: [
               _Legend(color: AppColors.accent, text: 'выполнено'),
               _Legend(color: null, text: 'запланировано'),
@@ -130,7 +133,7 @@ class CalendarPage extends ConsumerWidget {
               _Legend(color: AppColors.red, text: 'открыт на «Сегодня»', underline: true),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kLine),
         ],
       ),
     );
@@ -235,7 +238,9 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return SizedBox(
+      height: kLine,
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (underline)
@@ -263,6 +268,7 @@ class _Legend extends StatelessWidget {
         const SizedBox(width: 6),
         Text(text, style: AppText.body(14)),
       ],
+    ),
     );
   }
 }

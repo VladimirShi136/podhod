@@ -7,6 +7,7 @@ import '../../core/utils/day_key.dart';
 import '../../core/utils/plural.dart';
 import '../../core/widgets/input_dialogs.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/program_repository.dart';
 import '../../notebook/notebook_scope.dart';
@@ -56,20 +57,16 @@ class ProgramsPage extends ConsumerWidget {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (programs.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    'Программа — это заготовка тренировки, например '
-                    '«Понедельник: грудь». Создайте её или сохраните '
-                    'сегодняшнюю тренировку, а потом добавляйте в любой день '
-                    'одним нажатием.',
-                    style: AppText.body(18),
-                  ),
+                LineText(
+                  'Программа — это заготовка тренировки, например '
+                  '«Понедельник: грудь». Создайте её или сохраните '
+                  'сегодняшнюю тренировку, а потом добавляйте в любой день '
+                  'одним нажатием.',
+                  style: AppText.body(18),
                 )
               else
                 for (final p in programs)
                   _ProgramRow(details: p, onTap: () => open(p.program.id)),
-              const SizedBox(height: 8),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
@@ -181,8 +178,8 @@ class _ProgramRow extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 56),
+      child: LineSnap(
+        minLines: 2,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(

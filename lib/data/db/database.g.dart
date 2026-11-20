@@ -1943,6 +1943,15 @@ class $ProgramExercisesTable extends ProgramExercises
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _planMeta = const VerificationMeta('plan');
+  @override
+  late final GeneratedColumn<String> plan = GeneratedColumn<String>(
+    'plan',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1952,6 +1961,7 @@ class $ProgramExercisesTable extends ProgramExercises
     sets,
     reps,
     seconds,
+    plan,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2010,6 +2020,12 @@ class $ProgramExercisesTable extends ProgramExercises
         seconds.isAcceptableOrUnknown(data['seconds']!, _secondsMeta),
       );
     }
+    if (data.containsKey('plan')) {
+      context.handle(
+        _planMeta,
+        plan.isAcceptableOrUnknown(data['plan']!, _planMeta),
+      );
+    }
     return context;
   }
 
@@ -2047,6 +2063,10 @@ class $ProgramExercisesTable extends ProgramExercises
         DriftSqlType.int,
         data['${effectivePrefix}seconds'],
       ),
+      plan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan'],
+      ),
     );
   }
 
@@ -2066,6 +2086,10 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
   final int sets;
   final int? reps;
   final int? seconds;
+
+  /// Значения каждого подхода через запятую («6,7,10,11,8,8»): повторения
+  /// или секунды. Если пусто, берутся `sets` подходов по `reps`/`seconds`.
+  final String? plan;
   const ProgramExercise({
     required this.id,
     required this.programId,
@@ -2074,6 +2098,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
     required this.sets,
     this.reps,
     this.seconds,
+    this.plan,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2089,6 +2114,9 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
     if (!nullToAbsent || seconds != null) {
       map['seconds'] = Variable<int>(seconds);
     }
+    if (!nullToAbsent || plan != null) {
+      map['plan'] = Variable<String>(plan);
+    }
     return map;
   }
 
@@ -2103,6 +2131,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
       seconds: seconds == null && nullToAbsent
           ? const Value.absent()
           : Value(seconds),
+      plan: plan == null && nullToAbsent ? const Value.absent() : Value(plan),
     );
   }
 
@@ -2119,6 +2148,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
       sets: serializer.fromJson<int>(json['sets']),
       reps: serializer.fromJson<int?>(json['reps']),
       seconds: serializer.fromJson<int?>(json['seconds']),
+      plan: serializer.fromJson<String?>(json['plan']),
     );
   }
   @override
@@ -2132,6 +2162,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
       'sets': serializer.toJson<int>(sets),
       'reps': serializer.toJson<int?>(reps),
       'seconds': serializer.toJson<int?>(seconds),
+      'plan': serializer.toJson<String?>(plan),
     };
   }
 
@@ -2143,6 +2174,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
     int? sets,
     Value<int?> reps = const Value.absent(),
     Value<int?> seconds = const Value.absent(),
+    Value<String?> plan = const Value.absent(),
   }) => ProgramExercise(
     id: id ?? this.id,
     programId: programId ?? this.programId,
@@ -2151,6 +2183,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
     sets: sets ?? this.sets,
     reps: reps.present ? reps.value : this.reps,
     seconds: seconds.present ? seconds.value : this.seconds,
+    plan: plan.present ? plan.value : this.plan,
   );
   ProgramExercise copyWithCompanion(ProgramExercisesCompanion data) {
     return ProgramExercise(
@@ -2163,6 +2196,7 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
       sets: data.sets.present ? data.sets.value : this.sets,
       reps: data.reps.present ? data.reps.value : this.reps,
       seconds: data.seconds.present ? data.seconds.value : this.seconds,
+      plan: data.plan.present ? data.plan.value : this.plan,
     );
   }
 
@@ -2175,14 +2209,23 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
           ..write('position: $position, ')
           ..write('sets: $sets, ')
           ..write('reps: $reps, ')
-          ..write('seconds: $seconds')
+          ..write('seconds: $seconds, ')
+          ..write('plan: $plan')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, programId, exerciseId, position, sets, reps, seconds);
+  int get hashCode => Object.hash(
+    id,
+    programId,
+    exerciseId,
+    position,
+    sets,
+    reps,
+    seconds,
+    plan,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2193,7 +2236,8 @@ class ProgramExercise extends DataClass implements Insertable<ProgramExercise> {
           other.position == this.position &&
           other.sets == this.sets &&
           other.reps == this.reps &&
-          other.seconds == this.seconds);
+          other.seconds == this.seconds &&
+          other.plan == this.plan);
 }
 
 class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
@@ -2204,6 +2248,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
   final Value<int> sets;
   final Value<int?> reps;
   final Value<int?> seconds;
+  final Value<String?> plan;
   const ProgramExercisesCompanion({
     this.id = const Value.absent(),
     this.programId = const Value.absent(),
@@ -2212,6 +2257,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
     this.sets = const Value.absent(),
     this.reps = const Value.absent(),
     this.seconds = const Value.absent(),
+    this.plan = const Value.absent(),
   });
   ProgramExercisesCompanion.insert({
     this.id = const Value.absent(),
@@ -2221,6 +2267,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
     this.sets = const Value.absent(),
     this.reps = const Value.absent(),
     this.seconds = const Value.absent(),
+    this.plan = const Value.absent(),
   }) : programId = Value(programId),
        exerciseId = Value(exerciseId),
        position = Value(position);
@@ -2232,6 +2279,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
     Expression<int>? sets,
     Expression<int>? reps,
     Expression<int>? seconds,
+    Expression<String>? plan,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2241,6 +2289,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
       if (sets != null) 'sets': sets,
       if (reps != null) 'reps': reps,
       if (seconds != null) 'seconds': seconds,
+      if (plan != null) 'plan': plan,
     });
   }
 
@@ -2252,6 +2301,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
     Value<int>? sets,
     Value<int?>? reps,
     Value<int?>? seconds,
+    Value<String?>? plan,
   }) {
     return ProgramExercisesCompanion(
       id: id ?? this.id,
@@ -2261,6 +2311,7 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
       sets: sets ?? this.sets,
       reps: reps ?? this.reps,
       seconds: seconds ?? this.seconds,
+      plan: plan ?? this.plan,
     );
   }
 
@@ -2288,6 +2339,9 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
     if (seconds.present) {
       map['seconds'] = Variable<int>(seconds.value);
     }
+    if (plan.present) {
+      map['plan'] = Variable<String>(plan.value);
+    }
     return map;
   }
 
@@ -2300,7 +2354,8 @@ class ProgramExercisesCompanion extends UpdateCompanion<ProgramExercise> {
           ..write('position: $position, ')
           ..write('sets: $sets, ')
           ..write('reps: $reps, ')
-          ..write('seconds: $seconds')
+          ..write('seconds: $seconds, ')
+          ..write('plan: $plan')
           ..write(')'))
         .toString();
   }
@@ -4322,6 +4377,7 @@ typedef $$ProgramExercisesTableCreateCompanionBuilder =
       Value<int> sets,
       Value<int?> reps,
       Value<int?> seconds,
+      Value<String?> plan,
     });
 typedef $$ProgramExercisesTableUpdateCompanionBuilder =
     ProgramExercisesCompanion Function({
@@ -4332,6 +4388,7 @@ typedef $$ProgramExercisesTableUpdateCompanionBuilder =
       Value<int> sets,
       Value<int?> reps,
       Value<int?> seconds,
+      Value<String?> plan,
     });
 
 final class $$ProgramExercisesTableReferences
@@ -4409,6 +4466,11 @@ class $$ProgramExercisesTableFilterComposer
 
   ColumnFilters<int> get seconds => $composableBuilder(
     column: $table.seconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get plan => $composableBuilder(
+    column: $table.plan,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4493,6 +4555,11 @@ class $$ProgramExercisesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get plan => $composableBuilder(
+    column: $table.plan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ProgramsTableOrderingComposer get programId {
     final $$ProgramsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4563,6 +4630,9 @@ class $$ProgramExercisesTableAnnotationComposer
 
   GeneratedColumn<int> get seconds =>
       $composableBuilder(column: $table.seconds, builder: (column) => column);
+
+  GeneratedColumn<String> get plan =>
+      $composableBuilder(column: $table.plan, builder: (column) => column);
 
   $$ProgramsTableAnnotationComposer get programId {
     final $$ProgramsTableAnnotationComposer composer = $composerBuilder(
@@ -4648,6 +4718,7 @@ class $$ProgramExercisesTableTableManager
                 Value<int> sets = const Value.absent(),
                 Value<int?> reps = const Value.absent(),
                 Value<int?> seconds = const Value.absent(),
+                Value<String?> plan = const Value.absent(),
               }) => ProgramExercisesCompanion(
                 id: id,
                 programId: programId,
@@ -4656,6 +4727,7 @@ class $$ProgramExercisesTableTableManager
                 sets: sets,
                 reps: reps,
                 seconds: seconds,
+                plan: plan,
               ),
           createCompanionCallback:
               ({
@@ -4666,6 +4738,7 @@ class $$ProgramExercisesTableTableManager
                 Value<int> sets = const Value.absent(),
                 Value<int?> reps = const Value.absent(),
                 Value<int?> seconds = const Value.absent(),
+                Value<String?> plan = const Value.absent(),
               }) => ProgramExercisesCompanion.insert(
                 id: id,
                 programId: programId,
@@ -4674,6 +4747,7 @@ class $$ProgramExercisesTableTableManager
                 sets: sets,
                 reps: reps,
                 seconds: seconds,
+                plan: plan,
               ),
           withReferenceMapper: (p0) => p0
               .map(

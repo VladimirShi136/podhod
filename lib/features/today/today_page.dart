@@ -8,6 +8,7 @@ import '../../core/utils/day_key.dart';
 import '../../core/utils/plural.dart';
 import '../../core/widgets/input_dialogs.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/models.dart';
 import '../../notebook/page_header.dart';
@@ -64,60 +65,78 @@ class _TodayPageState extends ConsumerState<TodayPage>
 
     return CustomScrollView(
       slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        SliverToBoxAdapter(
+          child: PageHeader(title: formatDayTitle(date), wrapTitle: true),
+        ),
+        SliverToBoxAdapter(
+          // каждая «строка» Wrap занимает ровно одну строку тетради
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 0,
             children: [
-              PageHeader(title: formatDayTitle(date), wrapTitle: true),
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  Text('Тренировка №$number', style: AppText.body(15)),
-                  if (isToday && streak > 0)
-                    Sticker(
+              LineText('Тренировка №$number', style: AppText.body(15)),
+              if (isToday && streak > 0)
+                SizedBox(
+                  height: kLine,
+                  // widthFactor: 1 — иначе Center растягивается на всю ширину
+                  // строки, и бейдж падает на следующую
+                  child: Center(
+                    widthFactor: 1,
+                    child: Sticker(
                       '🔥 серия: $streak '
                       '${plural(streak, 'день', 'дня', 'дней')}',
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isToday ? 'Сегодня' : formatDayShort(date),
-                style: AppText.hand(24),
-              ),
-              if (details != null)
-                for (final item in details.exercises)
-                  ExerciseRow(
-                    key: ValueKey(item.entry.id),
-                    details: item,
-                    day: day,
-                    onOpen: () => showExerciseSheet(
-                      context,
-                      entryId: item.entry.id,
-                      day: day,
-                    ),
                   ),
-              SizedBox(
-                height: 56,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => showExercisePicker(context, day: day),
-                    child: Text(
-                      '+ добавить упражнение',
-                      style: AppText.body(
-                        19,
-                        color: AppColors.ink.withValues(alpha: 0.7),
-                      ),
-                    ),
+                ),
+            ],
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: LineText(
+            isToday ? 'Сегодня' : formatDayShort(date),
+            style: AppText.hand(24),
+          ),
+        ),
+        if (details != null)
+          SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final item = details.exercises[index];
+              return ExerciseRow(
+                key: ValueKey(item.entry.id),
+                details: item,
+                day: day,
+                onOpen: () => showExerciseSheet(
+                  context,
+                  entryId: item.entry.id,
+                  day: day,
+                ),
+              );
+            }, childCount: details.exercises.length),
+          ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 56,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => showExercisePicker(context, day: day),
+                child: Text(
+                  '+ добавить упражнение',
+                  style: AppText.body(
+                    19,
+                    color: AppColors.ink.withValues(alpha: 0.7),
                   ),
                 ),
               ),
-              if (workout != null && !isFuture) ...[
+            ),
+          ),
+        ),
+        if (workout != null && !isFuture)
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
                 _MoodRow(
                   mood: workout.mood,
                   onChanged: (m) => repo.setMood(workout.id, m),
@@ -156,27 +175,27 @@ class _TodayPageState extends ConsumerState<TodayPage>
                   ),
                 ),
                 if (isToday && workout.startedAt != null)
-                  Text(_timeInfo(workout), style: AppText.body(14)),
+                  LineText(_timeInfo(workout), style: AppText.body(14)),
               ],
-              const Spacer(),
-              const SizedBox(height: 8),
-              if (isToday) const RestTimerBar(),
-              if (_mainButton(day, details, isToday, isFuture)
-                  case final Widget button) ...[
-                button,
-                if (!isToday) const SizedBox(height: 10),
-              ],
-              if (!isToday)
-                NotebookButton(
-                  label: 'Вернуться к сегодняшнему дню',
-                  filled: details != null && !details.isEmpty,
-                  onPressed: () => ref
-                      .read(selectedDayProvider.notifier)
-                      .select(todayKey),
-                ),
-            ],
+            ),
           ),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        if (isToday) const SliverToBoxAdapter(child: RestTimerBar()),
+        if (_mainButton(day, details, isToday, isFuture)
+            case final Widget button) ...[
+          SliverToBoxAdapter(child: button),
+          if (!isToday) const SliverToBoxAdapter(child: SizedBox(height: 10)),
+        ],
+        if (!isToday)
+          SliverToBoxAdapter(
+            child: NotebookButton(
+              label: 'Вернуться к сегодняшнему дню',
+              filled: details != null && !details.isEmpty,
+              onPressed: () =>
+                  ref.read(selectedDayProvider.notifier).select(todayKey),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
       ],
     );
   }
@@ -240,7 +259,53 @@ class _TodayPageState extends ConsumerState<TodayPage>
     return NotebookButton(
       label: 'Завершить тренировку',
       filled: true,
-      onPressed: () => repo.finishWorkout(workout.id),
+      onPressed: () async {
+        final incompleteSets = details.exercises.fold<int>(
+          0,
+          (count, exercise) =>
+              count + exercise.sets.where((set) => !set.done).length,
+        );
+        if (incompleteSets > 0) {
+          final confirmed = await _confirmFinishIncomplete(
+            context,
+            incompleteSets,
+          );
+          if (confirmed != true || !context.mounted) return;
+        }
+        await repo.finishWorkout(workout.id);
+      },
+    );
+  }
+
+  Future<bool?> _confirmFinishIncomplete(
+    BuildContext context,
+    int incompleteSets,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        title: Text('Есть невыполненные подходы', style: AppText.hand(28)),
+        content: Text(
+          'Осталось $incompleteSets '
+          '${plural(incompleteSets, 'подход', 'подхода', 'подходов')}. '
+          'Завершить тренировку всё равно?',
+          style: AppText.body(17),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Продолжить', style: AppText.body(18)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Завершить',
+              style: AppText.body(18, color: AppColors.red),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

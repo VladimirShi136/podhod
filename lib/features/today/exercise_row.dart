@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/notebook_widgets.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/models.dart';
 import 'rest_timer.dart';
@@ -36,8 +37,8 @@ class ExerciseRow extends ConsumerWidget {
     final record = isRecord(details.sets, kind, best);
     final done = entry.done;
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 56),
+    return LineSnap(
+      minLines: 2,
       child: Row(
         children: [
           HandCheckbox(

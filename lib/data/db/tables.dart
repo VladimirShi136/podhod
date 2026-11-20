@@ -104,4 +104,8 @@ class ProgramExercises extends Table {
   IntColumn get reps => integer().nullable()();
 
   IntColumn get seconds => integer().nullable()();
+
+  /// Значения каждого подхода через запятую («6,7,10,11,8,8»): повторения
+  /// или секунды. Если пусто, берутся `sets` подходов по `reps`/`seconds`.
+  TextColumn get plan => text().nullable()();
 }
