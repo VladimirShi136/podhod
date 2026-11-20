@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../db/database.dart';
 import '../db/enums.dart';
+import '../../core/utils/set_values.dart';
 import 'program_repository.dart';
 
 class ExportEntry {
@@ -34,6 +35,37 @@ class ExportData {
   final List<ProgramDetails> programs;
   final List<Exercise> customExercises;
 }
+
+/// Что вернула загрузка из копии.
+class RestoreResult {
+  const RestoreResult({
+    required this.workouts,
+    required this.programs,
+    this.settings,
+  });
+
+  final int workouts;
+  final int programs;
+
+  /// Настройки из копии (null, если копия старая и их не содержит).
+  final Map<String, dynamic>? settings;
+}
+
+List<Map<String, dynamic>> _list(Object? value) => [
+      if (value is List)
+        for (final v in value)
+          if (v is Map<String, dynamic>) v,
+    ];
+
+T? _enumByName<T extends Enum>(List<T> values, Object? name) {
+  for (final v in values) {
+    if (v.name == name) return v;
+  }
+  return null;
+}
+
+DateTime? _date(Object? value) =>
+    value is String ? DateTime.tryParse(value) : null;
 
 /// Экспорт данных (резервная копия JSON и таблица CSV) и полная очистка.
 class ExportRepository {
@@ -103,6 +135,179 @@ class ExportRepository {
     );
   }
 
+  /// Восстановление из резервной копии (JSON из [buildJson]).
+  ///
+  /// Текущие тренировки, программы и свои упражнения заменяются данными
+  /// из копии. Сначала копия целиком проверяется, и только потом что-то
+  /// стирается, поэтому испорченный файл ничего не сломает.
+  /// Бросает [FormatException], если файл не похож на копию «Подхода».
+  Future<RestoreResult> restoreFromJson(String text) async {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      throw const FormatException('Файл не похож на резервную копию.');
+    }
+    if (decoded is! Map<String, dynamic> || decoded['app'] != 'podhod') {
+      throw const FormatException('Это не резервная копия приложения «Подход».');
+    }
+    final version = decoded['version'];
+    if (version is! int || version > 2) {
+      throw const FormatException(
+        'Копия сделана более новой версией приложения.',
+      );
+    }
+
+    final custom = _list(decoded['customExercises']);
+    final workouts = _list(decoded['workouts']);
+    final programs = _list(decoded['programs']);
+    // Проверка структуры до записи в базу.
+    for (final w in workouts) {
+      final day = w['day'];
+      if (day is! String || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(day)) {
+        throw const FormatException('В копии неверная дата тренировки.');
+      }
+    }
+
+    var workoutCount = 0;
+    var programCount = 0;
+    await _db.transaction(() async {
+      await eraseAll();
+
+      final byName = <String, Exercise>{
+        for (final e in await _db.select(_db.exercises).get()) e.name: e,
+      };
+
+      Future<Exercise> exerciseNamed(
+        String name, {
+        Object? group,
+        Object? kind,
+      }) async {
+        final found = byName[name];
+        if (found != null) return found;
+        final id = await _db.into(_db.exercises).insert(
+              ExercisesCompanion.insert(
+                name: name.length > 80 ? name.substring(0, 80) : name,
+                muscleGroup: _enumByName(MuscleGroup.values, group) ??
+                    MuscleGroup.fullBody,
+                kind: _enumByName(ExerciseKind.values, kind) ??
+                    ExerciseKind.reps,
+                isCustom: const Value(true),
+              ),
+            );
+        final created = await (_db.select(_db.exercises)
+              ..where((e) => e.id.equals(id)))
+            .getSingle();
+        return byName[name] = created;
+      }
+
+      for (final e in custom) {
+        final name = e['name'];
+        if (name is String && name.trim().isNotEmpty) {
+          await exerciseNamed(name.trim(), group: e['group'], kind: e['kind']);
+        }
+      }
+
+      for (final w in workouts) {
+        final workoutId = await _db.into(_db.workouts).insert(
+              WorkoutsCompanion.insert(
+                day: w['day'] as String,
+                startedAt: Value(_date(w['startedAt'])),
+                finishedAt: Value(_date(w['finishedAt'])),
+                note: Value(w['note'] is String ? w['note'] as String : ''),
+                mood: Value(w['mood'] is int ? w['mood'] as int : null),
+              ),
+            );
+        workoutCount++;
+        var position = 0;
+        for (final e in _list(w['exercises'])) {
+          final name = e['name'];
+          if (name is! String || name.trim().isEmpty) continue;
+          final exercise =
+              await exerciseNamed(name.trim(), kind: e['kind']);
+          final sets = _list(e['sets']);
+          final entryId = await _db.into(_db.workoutExercises).insert(
+                WorkoutExercisesCompanion.insert(
+                  workoutId: workoutId,
+                  exerciseId: exercise.id,
+                  position: position++,
+                  done: Value(
+                    sets.isNotEmpty && sets.every((s) => s['done'] == true),
+                  ),
+                ),
+              );
+          var index = 0;
+          for (final s in sets) {
+            await _db.into(_db.workoutSets).insert(
+                  WorkoutSetsCompanion.insert(
+                    workoutExerciseId: entryId,
+                    setIndex: index++,
+                    reps: Value(s['reps'] is int ? s['reps'] as int : null),
+                    seconds:
+                        Value(s['seconds'] is int ? s['seconds'] as int : null),
+                    done: Value(s['done'] == true),
+                  ),
+                );
+          }
+        }
+      }
+
+      for (final p in programs) {
+        final name = p['name'];
+        if (name is! String || name.trim().isEmpty) continue;
+        final programId = await _db.into(_db.programs).insert(
+              ProgramsCompanion.insert(
+                name: name.trim().length > 60
+                    ? name.trim().substring(0, 60)
+                    : name.trim(),
+              ),
+            );
+        programCount++;
+        var position = 0;
+        for (final i in _list(p['exercises'])) {
+          final exName = i['name'];
+          if (exName is! String || exName.trim().isEmpty) continue;
+          final exercise = await exerciseNamed(exName.trim());
+          final isTime = exercise.kind == ExerciseKind.time;
+          final raw = i['values'];
+          final values = [
+            if (raw is List)
+              for (final v in raw)
+                if (v is int && v >= 1) v,
+          ];
+          final plan = values.isEmpty
+              ? List.filled(
+                  i['sets'] is int && (i['sets'] as int) >= 1
+                      ? i['sets'] as int
+                      : ProgramRepository.defaultSets,
+                  isTime
+                      ? ProgramRepository.defaultSeconds
+                      : ProgramRepository.defaultReps,
+                )
+              : values;
+          await _db.into(_db.programExercises).insert(
+                ProgramExercisesCompanion.insert(
+                  programId: programId,
+                  exerciseId: exercise.id,
+                  position: position++,
+                  sets: Value(plan.length),
+                  reps: Value(isTime ? null : plan.first),
+                  seconds: Value(isTime ? plan.first : null),
+                  plan: Value(encodeSetValues(plan)),
+                ),
+              );
+        }
+      }
+    });
+
+    final settings = decoded['settings'];
+    return RestoreResult(
+      workouts: workoutCount,
+      programs: programCount,
+      settings: settings is Map<String, dynamic> ? settings : null,
+    );
+  }
+
   /// Стирает тренировки, программы и свои упражнения.
   /// Стартовый каталог остаётся.
   Future<void> eraseAll() {
@@ -167,11 +372,12 @@ String buildCsv(ExportData data) {
 }
 
 /// Резервная копия со всеми данными в удобочитаемом JSON.
-String buildJson(ExportData data) {
+String buildJson(ExportData data, {Map<String, Object?>? settings}) {
   final map = <String, Object?>{
     'app': 'podhod',
-    'version': 1,
+    'version': 2,
     'exportedAt': data.exportedAt.toIso8601String(),
+    if (settings != null) 'settings': settings,
     'customExercises': [
       for (final e in data.customExercises)
         {

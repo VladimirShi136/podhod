@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:podhod/features/today/rest_timer.dart';
+import 'package:podhod/features/settings/app_settings.dart';
 import 'package:podhod/features/settings/notification_service.dart';
+import 'package:podhod/features/settings/rest_sound.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeNotificationService extends NotificationService {
   DateTime? scheduledFor;
   var cancelCount = 0;
 
   @override
-  Future<void> scheduleRestTimer(DateTime endsAt) async {
+  Future<void> scheduleRestTimer(DateTime endsAt, RestSound? sound) async {
     scheduledFor = endsAt;
   }
 
@@ -19,10 +22,16 @@ class _FakeNotificationService extends NotificationService {
 }
 
 void main() {
-  test('таймер отдыха: старт, добавление времени, остановка', () {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('таймер отдыха: старт, добавление времени, остановка', () async {
     final notifications = _FakeNotificationService();
+    final prefs = await SharedPreferences.getInstance();
     final c = ProviderContainer(
-      overrides: [notificationServiceProvider.overrideWithValue(notifications)],
+      overrides: [
+        notificationServiceProvider.overrideWithValue(notifications),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
     );
     addTearDown(c.dispose);
 
@@ -45,11 +54,13 @@ void main() {
 
   test(
     'не отменяет уведомление при окончании, но отменяет при ручной остановке',
-    () {
+    () async {
       final notifications = _FakeNotificationService();
+      final prefs = await SharedPreferences.getInstance();
       final c = ProviderContainer(
         overrides: [
           notificationServiceProvider.overrideWithValue(notifications),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
       );
       addTearDown(c.dispose);

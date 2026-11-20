@@ -11,6 +11,7 @@ import '../../data/db/database.dart';
 import '../../data/providers.dart';
 import '../settings/app_settings.dart';
 import '../settings/notification_service.dart';
+import '../settings/sound_player.dart';
 
 /// Допустимые значения отдыха по умолчанию, секунды.
 const restPresets = [30, 60, 90, 120, 180];
@@ -55,9 +56,62 @@ class RestState {
   Duration remaining(DateTime now) => endsAt.difference(now);
 }
 
-class RestTimer extends Notifier<RestState?> {
+/// Приложение сейчас на экране? В тестах без привязки к движку — нет.
+bool _appInForeground() {
+  try {
+    return WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+  } catch (_) {
+    return false;
+  }
+}
+
+class RestTimer extends Notifier<RestState?> with WidgetsBindingObserver {
   @override
-  RestState? build() => null;
+  RestState? build() {
+    try {
+      WidgetsBinding.instance.addObserver(this);
+      ref.onDispose(() => WidgetsBinding.instance.removeObserver(this));
+    } catch (_) {
+      // нет привязки к движку (юнит-тесты)
+    }
+    return null;
+  }
+
+  /// Пока приложение открыто, сигнал подаёт оно само (звук без уведомления
+  /// в шторке). Уведомление нужно, только когда приложение свёрнуто.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    final s = state;
+    if (s == null) return;
+    final notifications = ref.read(notificationServiceProvider);
+    switch (lifecycle) {
+      case AppLifecycleState.resumed:
+        unawaited(notifications.cancelRestTimer());
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        if (!s.fired && s.endsAt.isAfter(DateTime.now())) {
+          unawaited(
+            notifications.scheduleRestTimer(
+              s.endsAt,
+              ref.read(settingsProvider).activeRestSound,
+            ),
+          );
+        }
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  void _scheduleIfBackground(DateTime endsAt) {
+    if (_appInForeground()) return;
+    unawaited(
+      ref.read(notificationServiceProvider).scheduleRestTimer(
+            endsAt,
+            ref.read(settingsProvider).activeRestSound,
+          ),
+    );
+  }
 
   void start(int seconds) {
     final rest = RestState(
@@ -65,9 +119,7 @@ class RestTimer extends Notifier<RestState?> {
       total: seconds,
     );
     state = rest;
-    unawaited(
-      ref.read(notificationServiceProvider).scheduleRestTimer(rest.endsAt),
-    );
+    _scheduleIfBackground(rest.endsAt);
   }
 
   /// Добавляет или убирает секунды. Если время вышло, отдых завершается.
@@ -85,9 +137,7 @@ class RestTimer extends Notifier<RestState?> {
       fired: false,
     );
     state = adjusted;
-    unawaited(
-      ref.read(notificationServiceProvider).scheduleRestTimer(adjusted.endsAt),
-    );
+    _scheduleIfBackground(adjusted.endsAt);
   }
 
   void markFired() {
@@ -174,11 +224,9 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
   }
 
   Future<void> _signal() async {
-    try {
-      await SystemSound.play(SystemSoundType.alert);
-    } on PlatformException catch (e) {
-      debugPrint('Не удалось воспроизвести системный сигнал: $e');
-    }
+    // Приложение открыто: звук играем сами, без уведомления в шторке.
+    final sound = ref.read(settingsProvider).activeRestSound;
+    if (sound != null) unawaited(ref.read(soundPlayerProvider).play(sound));
     for (var i = 0; i < 3; i++) {
       HapticFeedback.heavyImpact();
       await Future<void>.delayed(const Duration(milliseconds: 250));

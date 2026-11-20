@@ -5,6 +5,7 @@ import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'reminder_plan.dart';
+import 'rest_sound.dart';
 
 /// Вся работа с системными уведомлениями собрана здесь. Если плагин
 /// изменит свой интерфейс, править нужно только этот файл.
@@ -28,23 +29,31 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
-  static const _restTimerDetails = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'rest_timer',
-      'Таймер отдыха',
-      channelDescription: 'Сигнал об окончании отдыха между подходами',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    ),
-    iOS: DarwinNotificationDetails(
-      presentAlert: true,
-      presentSound: true,
-      presentBanner: true,
-      presentList: true,
-    ),
-  );
+  /// Параметры уведомления об окончании отдыха. Звук канала в Android нельзя
+  /// поменять после создания, поэтому у каждого звука свой канал.
+  /// [sound] == null — без звука (останется вибрация).
+  static NotificationDetails _restDetails(RestSound? sound) {
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        sound == null ? 'rest_timer_silent' : 'rest_timer_${sound.name}',
+        sound == null ? 'Таймер отдыха (без звука)' : 'Таймер отдыха: ${sound.label}',
+        channelDescription: 'Сигнал об окончании отдыха между подходами',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: sound != null,
+        sound: sound == null
+            ? null
+            : RawResourceAndroidNotificationSound(sound.resource),
+        enableVibration: true,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentSound: sound != null,
+        presentBanner: true,
+        presentList: true,
+      ),
+    );
+  }
 
   Future<void> _init() async {
     if (_ready) return;
@@ -140,7 +149,7 @@ class NotificationService {
     }
   }
 
-  Future<void> scheduleRestTimer(DateTime endsAt) async {
+  Future<void> scheduleRestTimer(DateTime endsAt, RestSound? sound) async {
     try {
       await _init();
       final previouslyGranted = _notificationsGranted;
@@ -159,7 +168,7 @@ class NotificationService {
         title: 'Отдых закончен',
         body: 'Пора к следующему подходу.',
         scheduledDate: tz.TZDateTime.from(endsAt, tz.UTC),
-        notificationDetails: _restTimerDetails,
+        notificationDetails: _restDetails(sound),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     } catch (e) {

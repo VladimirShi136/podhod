@@ -68,7 +68,7 @@ void main() {
     final json =
         jsonDecode(buildJson(await export.load())) as Map<String, dynamic>;
     expect(json['app'], 'podhod');
-    expect(json['version'], 1);
+    expect(json['version'], 2);
     expect((json['customExercises'] as List).single['name'], 'Моё; "особое"');
     final workout = (json['workouts'] as List).single as Map<String, dynamic>;
     expect(workout['day'], '2026-11-14');
@@ -95,5 +95,35 @@ void main() {
     final after = await db.select(db.exercises).get();
     expect(after.length, before - 1);
     expect(after.any((e) => e.isCustom), isFalse);
+  });
+
+  test('восстановление из копии возвращает тренировки и программы', () async {
+    await fill();
+    final backup = buildJson(await export.load());
+    final before = await export.load();
+
+    await export.eraseAll();
+    final result = await export.restoreFromJson(backup);
+
+    expect(result.workouts, 1);
+    expect(result.programs, 1);
+    final after = await export.load();
+    expect(after.customExercises.single.name, 'Моё; "особое"');
+    expect(buildCsv(after), buildCsv(before));
+    expect(after.programs.single.items.single.values,
+        before.programs.single.items.single.values);
+  });
+
+  test('восстановление: чужой или испорченный файл ничего не стирает', () async {
+    await fill();
+    await expectLater(
+      export.restoreFromJson('это не json'),
+      throwsA(isA<FormatException>()),
+    );
+    await expectLater(
+      export.restoreFromJson('{"app":"other"}'),
+      throwsA(isA<FormatException>()),
+    );
+    expect(await db.select(db.workouts).get(), isNotEmpty);
   });
 }

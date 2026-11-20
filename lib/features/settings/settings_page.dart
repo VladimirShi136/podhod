@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -10,6 +11,8 @@ import '../../notebook/page_header.dart';
 import '../today/rest_timer.dart';
 import 'app_settings.dart';
 import 'notification_service.dart';
+import 'rest_sound.dart';
+import 'sound_player.dart';
 import 'settings_providers.dart';
 
 const _weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -24,6 +27,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _exporting = false;
+  bool _soundListOpen = false;
 
   Future<void> _message(String title, String text) {
     return showDialog<void>(
@@ -69,6 +73,57 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await exportAndShare(ref, format);
     } catch (e) {
       if (mounted) await _message('Не удалось выгрузить', '$e');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  void _testSound(RestSound? sound) {
+    if (sound == null) {
+      HapticFeedback.heavyImpact();
+    } else {
+      ref.read(soundPlayerProvider).play(sound);
+    }
+  }
+
+  Future<void> _restore() async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        title: Text('Восстановить из копии?', style: AppText.hand(28)),
+        content: Text(
+          'Выберите файл резервной копии (JSON). Текущие тренировки, '
+          'программы и ваши упражнения будут заменены данными из файла.',
+          style: AppText.body(17),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Отмена', style: AppText.body(18)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Выбрать файл', style: AppText.body(18)),
+          ),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    setState(() => _exporting = true);
+    try {
+      final result = await pickAndRestore(ref);
+      if (result != null && mounted) {
+        await _message(
+          'Готово',
+          'Восстановлено: тренировок — ${result.workouts}, '
+              'программ — ${result.programs}.',
+        );
+      }
+    } on FormatException catch (e) {
+      if (mounted) await _message('Не удалось восстановить', e.message);
+    } catch (e) {
+      if (mounted) await _message('Не удалось восстановить', '$e');
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -141,6 +196,67 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
           ),
+          LineText('Звук таймера', style: AppText.hand(26)),
+          SizedBox(
+            height: 2 * kLine,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Звук при окончании отдыха', style: AppText.body(19)),
+              value: settings.restSoundEnabled,
+              activeThumbColor: AppColors.ink,
+              onChanged: notifier.setRestSoundEnabled,
+            ),
+          ),
+          if (settings.restSoundEnabled) ...[
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _soundListOpen = !_soundListOpen),
+              child: SizedBox(
+                height: 2 * kLine,
+                child: Row(
+                  children: [
+                    Expanded(child: Text('Мелодия', style: AppText.body(19))),
+                    Text(settings.restSound.label, style: AppText.hand(28)),
+                    Icon(
+                      _soundListOpen ? Icons.expand_less : Icons.expand_more,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_soundListOpen)
+              for (final sound in RestSound.values)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    notifier.setRestSound(sound);
+                    _testSound(sound);
+                  },
+                  child: SizedBox(
+                    height: 2 * kLine,
+                    child: Row(
+                      children: [
+                        Icon(
+                          settings.restSound == sound
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: AppColors.ink,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(sound.label, style: AppText.body(18)),
+                        ),
+                        const Icon(Icons.volume_up_outlined, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
+          NotebookButton(
+            label: 'Проверить звук',
+            onPressed: () => _testSound(settings.activeRestSound),
+          ),
+          const SizedBox(height: 8),
           LineText('Напоминания', style: AppText.hand(26)),
           SizedBox(
             height: 2 * kLine,
@@ -206,6 +322,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           NotebookButton(
             label: 'Резервная копия (JSON)',
             onPressed: _exporting ? null : () => _export(ExportFormat.json),
+          ),
+          const SizedBox(height: 8),
+          NotebookButton(
+            label: 'Восстановить из копии',
+            onPressed: _exporting ? null : _restore,
           ),
           const SizedBox(height: 8),
           NotebookButton(
