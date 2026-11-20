@@ -331,6 +331,16 @@ class WorkoutRepository {
         .write(WorkoutsCompanion(startedAt: Value(DateTime.now())));
   }
 
+  /// Отменяет начало незавершённой тренировки, сохраняя её содержимое.
+  Future<void> cancelWorkoutStart(int workoutId) async {
+    final workout = await (_db.select(
+      _db.workouts,
+    )..where((w) => w.id.equals(workoutId))).getSingle();
+    if (workout.startedAt == null || workout.finishedAt != null) return;
+    await (_db.update(_db.workouts)..where((w) => w.id.equals(workoutId)))
+        .write(const WorkoutsCompanion(startedAt: Value(null)));
+  }
+
   Future<void> finishWorkout(int workoutId) {
     return (_db.update(_db.workouts)..where((w) => w.id.equals(workoutId)))
         .write(WorkoutsCompanion(finishedAt: Value(DateTime.now())));

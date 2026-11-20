@@ -174,18 +174,34 @@ class _TodayPageState extends ConsumerState<TodayPage>
                     ),
                   ),
                 ),
-                if (isToday && workout.startedAt != null)
-                  LineText(_timeInfo(workout), style: AppText.body(14)),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: _fadeSizeTransition,
+                  child: isToday && workout.startedAt != null
+                      ? LineText(
+                          _timeInfo(workout),
+                          key: ValueKey(
+                            workout.finishedAt == null ? 'started' : 'finished',
+                          ),
+                          style: AppText.body(14),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('not-started')),
+                ),
               ],
             ),
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
         if (isToday) const SliverToBoxAdapter(child: RestTimerBar()),
-        if (_mainButton(day, details, isToday, isFuture)
-            case final Widget button) ...[
-          SliverToBoxAdapter(child: button),
-          if (!isToday) const SliverToBoxAdapter(child: SizedBox(height: 10)),
-        ],
+        SliverToBoxAdapter(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: _fadeSizeTransition,
+            child:
+                _mainButton(day, details, isToday, isFuture) ??
+                const SizedBox.shrink(key: ValueKey('no-main-button')),
+          ),
+        ),
+        if (!isToday) const SliverToBoxAdapter(child: SizedBox(height: 10)),
         if (!isToday)
           SliverToBoxAdapter(
             child: NotebookButton(
@@ -231,6 +247,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
 
     if (workout == null || details!.isEmpty) {
       return NotebookButton(
+        key: const ValueKey('pick-exercises'),
         label: 'Начать тренировку',
         filled: true,
         onPressed: () => showExercisePicker(context, day: day),
@@ -240,6 +257,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
       // Кнопки нет: если дописать упражнение или подход, тренировка
       // сама станет снова «идущей».
       return Padding(
+        key: const ValueKey('workout-finished'),
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Center(
           child: Text(
@@ -251,29 +269,40 @@ class _TodayPageState extends ConsumerState<TodayPage>
     }
     if (workout.startedAt == null) {
       return NotebookButton(
+        key: const ValueKey('workout-not-started'),
         label: 'Начать тренировку',
         filled: true,
         onPressed: () => repo.startWorkout(workout.id),
       );
     }
-    return NotebookButton(
-      label: 'Завершить тренировку',
-      filled: true,
-      onPressed: () async {
-        final incompleteSets = details.exercises.fold<int>(
-          0,
-          (count, exercise) =>
-              count + exercise.sets.where((set) => !set.done).length,
-        );
-        if (incompleteSets > 0) {
-          final confirmed = await _confirmFinishIncomplete(
-            context,
-            incompleteSets,
-          );
-          if (confirmed != true || !context.mounted) return;
-        }
-        await repo.finishWorkout(workout.id);
-      },
+    return Column(
+      key: const ValueKey('workout-started'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        NotebookButton(
+          label: 'Завершить тренировку',
+          filled: true,
+          onPressed: () async {
+            final incompleteSets = details.exercises.fold<int>(
+              0,
+              (count, exercise) =>
+                  count + exercise.sets.where((set) => !set.done).length,
+            );
+            if (incompleteSets > 0) {
+              final confirmed = await _confirmFinishIncomplete(
+                context,
+                incompleteSets,
+              );
+              if (confirmed != true || !context.mounted) return;
+            }
+            await repo.finishWorkout(workout.id);
+          },
+        ),
+        TextButton(
+          onPressed: () => repo.cancelWorkoutStart(workout.id),
+          child: Text('Отменить начало', style: AppText.body(16)),
+        ),
+      ],
     );
   }
 
@@ -308,6 +337,14 @@ class _TodayPageState extends ConsumerState<TodayPage>
       ),
     );
   }
+}
+
+Widget _fadeSizeTransition(Widget child, Animation<double> animation) {
+  return SizeTransition(
+    sizeFactor: animation,
+    alignment: Alignment.topCenter,
+    child: FadeTransition(opacity: animation, child: child),
+  );
 }
 
 class _MoodRow extends StatelessWidget {

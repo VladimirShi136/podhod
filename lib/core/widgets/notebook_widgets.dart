@@ -106,10 +106,16 @@ class Sticker extends StatelessWidget {
 
 /// Чекбокс в клетку с красной «галочкой от руки».
 class HandCheckbox extends StatelessWidget {
-  const HandCheckbox({super.key, required this.checked, this.onChanged});
+  const HandCheckbox({
+    super.key,
+    required this.checked,
+    this.onChanged,
+    this.animate = false,
+  });
 
   final bool checked;
   final ValueChanged<bool>? onChanged;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +129,33 @@ class HandCheckbox extends StatelessWidget {
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CustomPaint(painter: _CheckPainter(checked)),
+            child: animate
+                ? Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Positioned.fill(
+                        child: CustomPaint(
+                          painter: _CheckPainter(false),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: AnimatedOpacity(
+                          opacity: checked ? 1 : 0,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          child: AnimatedScale(
+                            scale: checked ? 1 : 0.7,
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            child: const CustomPaint(
+                              painter: _CheckPainter(true, drawBox: false),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : CustomPaint(painter: _CheckPainter(checked)),
           ),
         ),
       ),
@@ -132,20 +164,23 @@ class HandCheckbox extends StatelessWidget {
 }
 
 class _CheckPainter extends CustomPainter {
-  const _CheckPainter(this.checked);
+  const _CheckPainter(this.checked, {this.drawBox = true});
 
   final bool checked;
+  final bool drawBox;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final box = Paint()
-      ..color = AppColors.ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(4)),
-      box,
-    );
+    if (drawBox) {
+      final box = Paint()
+        ..color = AppColors.ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(4)),
+        box,
+      );
+    }
 
     if (checked) {
       final tick = Paint()
@@ -164,5 +199,6 @@ class _CheckPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CheckPainter old) => old.checked != checked;
+  bool shouldRepaint(_CheckPainter old) =>
+      old.checked != checked || old.drawBox != drawBox;
 }

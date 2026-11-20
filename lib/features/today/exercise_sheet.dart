@@ -77,70 +77,73 @@ class ExerciseSheet extends ConsumerWidget {
           right: 20,
           bottom: MediaQuery.of(context).viewInsets.bottom + 8,
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const RestTimerBar(),
-              Text(details.exercise.name, style: AppText.hand(32)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const RestTimerBar(),
+            Text(details.exercise.name, style: AppText.hand(32)),
+            Text(
+              '${details.exercise.muscleGroup.label} · ${kind.label}',
+              style: AppText.body(
+                15,
+                color: AppColors.ink.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (last.isNotEmpty)
               Text(
-                '${details.exercise.muscleGroup.label} · ${kind.label}',
-                style: AppText.body(
-                  15,
-                  color: AppColors.ink.withValues(alpha: 0.7),
-                ),
+                'Прошлый раз: ${setsSummary(last, kind)}',
+                style: AppText.body(16),
               ),
-              const SizedBox(height: 6),
-              if (last.isNotEmpty)
-                Text(
-                  'Прошлый раз: ${setsSummary(last, kind)}',
-                  style: AppText.body(16),
-                ),
-              if (bestStr != null)
-                Text('Рекорд: $bestStr', style: AppText.body(16)),
-              const SizedBox(height: 10),
-              for (var i = 0; i < details.sets.length; i++)
-                _SetEditor(
-                  index: i,
-                  set: details.sets[i],
-                  isTime: isTime,
-                  day: day,
-                ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: NotebookButton(
-                      label: '+ подход',
-                      onPressed: () {
-                        final lastSet = details.sets.isEmpty
-                            ? null
-                            : details.sets.last;
-                        repo.addSet(
-                          details.entry.id,
-                          reps: isTime ? null : (lastSet?.reps ?? 10),
-                          seconds: isTime ? (lastSet?.seconds ?? 30) : null,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              TextButton.icon(
-                onPressed: () async {
-                  final ok = await _confirmRemove(context);
-                  if (ok == true) await repo.removeExercise(details.entry.id);
+            if (bestStr != null)
+              Text('Рекорд: $bestStr', style: AppText.body(16)),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: details.sets.length,
+                itemBuilder: (context, index) {
+                  return _SetEditor(
+                    index: index,
+                    set: details.sets[index],
+                    isTime: isTime,
+                    day: day,
+                  );
                 },
-                icon: const Icon(Icons.delete_outline, color: AppColors.red),
-                label: Text(
-                  'Убрать из тренировки',
-                  style: AppText.body(16, color: AppColors.red),
-                ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: NotebookButton(
+                    label: '+ подход',
+                    onPressed: () {
+                      final lastSet =
+                          details.sets.isEmpty ? null : details.sets.last;
+                      repo.addSet(
+                        details.entry.id,
+                        reps: isTime ? null : (lastSet?.reps ?? 10),
+                        seconds: isTime ? (lastSet?.seconds ?? 30) : null,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: () async {
+                final ok = await _confirmRemove(context);
+                if (ok == true) await repo.removeExercise(details.entry.id);
+              },
+              icon: const Icon(Icons.delete_outline, color: AppColors.red),
+              label: Text(
+                'Убрать из тренировки',
+                style: AppText.body(16, color: AppColors.red),
+              ),
+            ),
+          ],
         ),
       ),
     );

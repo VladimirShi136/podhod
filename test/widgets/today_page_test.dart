@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:podhod/core/utils/day_key.dart';
+import 'package:podhod/core/widgets/notebook_widgets.dart';
 import 'package:podhod/data/db/database.dart';
 import 'package:podhod/data/providers.dart';
 import 'package:podhod/data/repositories/workout_repository.dart';
@@ -29,10 +30,11 @@ void main() {
   Future<int> prepareWorkout({
     required bool completeSets,
     int exerciseCount = 1,
+    bool started = true,
   }) async {
     final workoutId = await workouts.ensureWorkout(dayKey(DateTime.now()));
     final exercise = (await db.select(db.exercises).get()).first;
-    await workouts.startWorkout(workoutId);
+    if (started) await workouts.startWorkout(workoutId);
     for (var i = 0; i < exerciseCount; i++) {
       final entryId = await workouts.addExercise(
         workoutId: workoutId,
@@ -121,6 +123,46 @@ void main() {
     expect(workout.finishedAt, isNotNull);
   });
 
+  testWidgets('отметка упражнения зачёркивает его название', (tester) async {
+    await prepareWorkout(completeSets: false);
+    final exercise = (await db.select(db.exercises).get()).first;
+    await pumpTodayPage(tester);
+
+    await tester.tap(find.byType(HandCheckbox).first);
+    await tester.pumpAndSettle();
+
+    final title = tester.widget<Text>(find.text(exercise.name));
+    expect(title.style?.decoration, TextDecoration.lineThrough);
+    expect((await db.select(db.workoutExercises).get()).single.done, isTrue);
+  });
+
+  testWidgets('можно отменить начало тренировки, не теряя упражнения', (
+    tester,
+  ) async {
+    final workoutId = await prepareWorkout(completeSets: false, started: false);
+    await pumpTodayPage(tester);
+
+    await tester.tap(find.text('Начать тренировку'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Завершить тренировку'), findsOneWidget);
+    expect(find.text('Отменить начало'), findsOneWidget);
+    expect(find.textContaining('Начало:'), findsOneWidget);
+
+    await tester.tap(find.text('Отменить начало'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Начать тренировку'), findsOneWidget);
+    expect(find.text('Отменить начало'), findsNothing);
+    expect(find.textContaining('Начало:'), findsNothing);
+    final workout = await (db.select(
+      db.workouts,
+    )..where((w) => w.id.equals(workoutId))).getSingle();
+    expect(workout.startedAt, isNull);
+    expect(workout.finishedAt, isNull);
+    expect(await db.select(db.workoutExercises).get(), hasLength(1));
+  });
+
   testWidgets('кнопка завершения остается доступной при прокрутке списка', (
     tester,
   ) async {
@@ -169,13 +211,25 @@ void main() {
     final bottomSheet = find.byType(BottomSheet);
     expect(tester.getSize(bottomSheet).height, lessThan(620));
 
+    final addButton = find.text('+ подход');
     final removeButton = find.text('Убрать из тренировки');
-    await tester.scrollUntilVisible(
-      removeButton,
-      120,
-      scrollable: find.byType(Scrollable).last,
-    );
+    expect(addButton, findsOneWidget);
     expect(removeButton, findsOneWidget);
+    final addButtonTop = tester.getTopLeft(addButton).dy;
+    final removeButtonTop = tester.getTopLeft(removeButton).dy;
+    expect(tester.getRect(removeButton).bottom, lessThan(640));
+
+    final list = find.byType(ListView).last;
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).last,
+    );
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+    await tester.drag(list, const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(scrollable.position.pixels, greaterThan(0));
+    expect(tester.getTopLeft(addButton).dy, addButtonTop);
+    expect(tester.getTopLeft(removeButton).dy, removeButtonTop);
   });
 
   testWidgets('надпись о завершении прокручивается вместе с содержимым', (

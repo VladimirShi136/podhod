@@ -43,6 +43,7 @@ class ExerciseRow extends ConsumerWidget {
         children: [
           HandCheckbox(
             checked: done,
+            animate: true,
             onChanged: (v) => repo.setExerciseDone(entry.id, v),
           ),
           const SizedBox(width: 6),
@@ -60,17 +61,34 @@ class ExerciseRow extends ConsumerWidget {
                         Row(
                           children: [
                             Flexible(
-                              child: Text(
-                                details.exercise.name,
-                                style: AppText.body(19).copyWith(
-                                  decoration: done
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationColor: AppColors.red,
-                                  decorationThickness: 2,
-                                  color: done
-                                      ? AppColors.ink.withValues(alpha: 0.6)
-                                      : AppColors.ink,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                transitionBuilder: (child, animation) =>
+                                    FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
+                                layoutBuilder:
+                                    (currentChild, previousChildren) => Stack(
+                                      alignment: Alignment.centerLeft,
+                                      children: [
+                                        ...previousChildren,
+                                        ?currentChild,
+                                      ],
+                                    ),
+                                child: Text(
+                                  details.exercise.name,
+                                  key: ValueKey(done),
+                                  style: AppText.body(19).copyWith(
+                                    decoration: done
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    decorationColor: AppColors.red,
+                                    decorationThickness: 2,
+                                    color: done
+                                        ? AppColors.ink.withValues(alpha: 0.6)
+                                        : AppColors.ink,
+                                  ),
                                 ),
                               ),
                             ),
