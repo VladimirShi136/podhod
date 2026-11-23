@@ -29,7 +29,10 @@ class ProgressPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PageHeader(title: 'Прогресс', subtitle: 'Объём и личные рекорды'),
+          const PageHeader(
+            title: 'Прогресс',
+            subtitle: 'Объём и личные рекорды',
+          ),
           if (data == null)
             const Padding(
               padding: EdgeInsets.only(top: 40),
@@ -51,10 +54,12 @@ class ProgressPage extends ConsumerWidget {
           else ...[
             _Totals(totals: data.totals),
             LineText('Рекорды', style: AppText.hand(28)),
+            const SizedBox(height: kLine),
             for (final e in data.exercises)
               _RecordRow(
                 progress: e,
-                fresh: e.hasImprovedRecord &&
+                fresh:
+                    e.hasImprovedRecord &&
                     now.difference(parseDayKey(e.bestDay)).inDays <= _freshDays,
                 onTap: () => showExerciseProgress(context, e.exerciseId),
               ),
@@ -75,35 +80,38 @@ class _Totals extends StatelessWidget {
   Widget build(BuildContext context) {
     // три строки тетради: число на двух, подпись на третьей
     Widget cell(int n, String label) => Expanded(
-          child: SizedBox(
-            height: 3 * kLine,
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 2 * kLine,
-                  child: Center(child: Text('$n', style: AppText.hand(40))),
-                ),
-                LineText(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: AppText.body(14),
-                ),
-              ],
+      child: SizedBox(
+        height: 3 * kLine,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 2 * kLine,
+              child: Center(child: Text('$n', style: AppText.hand(40))),
             ),
-          ),
-        );
+            LineText(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppText.body(14),
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        cell(totals.workouts,
-            plural(totals.workouts, 'тренировка', 'тренировки', 'тренировок')),
-        cell(totals.sets,
-            plural(totals.sets, 'подход', 'подхода', 'подходов')),
-        cell(totals.reps,
-            plural(totals.reps, 'повторение', 'повторения', 'повторений')),
+        cell(
+          totals.workouts,
+          plural(totals.workouts, 'тренировка', 'тренировки', 'тренировок'),
+        ),
+        cell(totals.sets, plural(totals.sets, 'подход', 'подхода', 'подходов')),
+        cell(
+          totals.reps,
+          plural(totals.reps, 'повторение', 'повторения', 'повторений'),
+        ),
       ],
     );
   }
@@ -127,22 +135,41 @@ class _RecordRow extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: LineSnap(
-        minLines: 2,
+        minLines: 3,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  LineText(
+                    progress.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body(19),
+                  ),
+                  LineText(
+                    '${progress.sessions} '
+                    '${plural(progress.sessions, 'тренировка', 'тренировки', 'тренировок')}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body(
+                      13,
+                      color: AppColors.ink.withValues(alpha: 0.65),
+                    ),
+                  ),
                   Row(
                     children: [
-                      Flexible(
-                        child: Text(
-                          progress.name,
-                          maxLines: 2,
+                      Expanded(
+                        child: LineText(
+                          'Последняя $last',
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppText.body(19),
+                          style: AppText.body(
+                            13,
+                            color: AppColors.ink.withValues(alpha: 0.65),
+                          ),
                         ),
                       ),
                       if (fresh) ...[
@@ -151,19 +178,20 @@ class _RecordRow extends StatelessWidget {
                       ],
                     ],
                   ),
-                  Text(
-                    '${progress.sessions} '
-                    '${plural(progress.sessions, 'тренировка', 'тренировки', 'тренировок')}'
-                    ' · последняя $last',
-                    style: AppText.body(13,
-                        color: AppColors.ink.withValues(alpha: 0.65)),
-                  ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(progress.format(progress.bestValue), style: AppText.hand(30)),
-            const Icon(Icons.chevron_right, color: AppColors.ink),
+            LineText(
+              progress.format(progress.bestValue),
+              style: AppText.hand(28),
+            ),
+            SizedBox(
+              height: kLine,
+              child: Center(
+                child: Icon(Icons.chevron_right, color: AppColors.ink),
+              ),
+            ),
           ],
         ),
       ),

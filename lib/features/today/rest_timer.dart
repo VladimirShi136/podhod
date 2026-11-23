@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/paper_lines.dart';
 import '../../core/utils/day_key.dart';
 import '../../data/db/database.dart';
 import '../../data/providers.dart';
@@ -179,7 +180,10 @@ String formatCountdown(Duration d) {
 
 /// Полоска таймера отдыха над нижней кнопкой страницы «Сегодня».
 class RestTimerBar extends ConsumerStatefulWidget {
-  const RestTimerBar({super.key});
+  const RestTimerBar({super.key, this.snapToLines = false});
+
+  /// На странице-тетради высота округляется до целого числа строк.
+  final bool snapToLines;
 
   @override
   ConsumerState<RestTimerBar> createState() => _RestTimerBarState();
@@ -246,8 +250,8 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
     final notifier = ref.read(restTimerProvider.notifier);
     final duration = ref.watch(restDurationProvider);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+    final bar = Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
       decoration: BoxDecoration(
         color: finished ? AppColors.accent : AppColors.sticker,
@@ -301,6 +305,7 @@ class _RestTimerBarState extends ConsumerState<RestTimerBar> {
         ],
       ),
     );
+    return widget.snapToLines ? LineSnap(child: bar) : bar;
   }
 
   Future<void> _pickDefault(BuildContext context) async {

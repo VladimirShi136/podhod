@@ -93,7 +93,6 @@ class ProgramsPage extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              const SizedBox(height: 12),
               NotebookButton(
                 label: '+ Новая программа',
                 filled: true,
@@ -109,7 +108,6 @@ class ProgramsPage extends ConsumerWidget {
                   if (context.mounted) open(id);
                 },
               ),
-              const SizedBox(height: 10),
               NotebookButton(
                 label: 'Из сегодняшней тренировки',
                 onPressed: () => _fromToday(context, ref, open),

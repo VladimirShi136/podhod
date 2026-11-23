@@ -247,7 +247,7 @@ void main() {
     await workouts.finishWorkout(workoutId);
     await pumpTodayPage(tester);
 
-    final finishedLabel = find.text('Тренировка завершена ✓');
+    final finishedLabel = find.text('Тренировка завершена');
     await tester.scrollUntilVisible(
       finishedLabel,
       120,
@@ -259,5 +259,6 @@ void main() {
     );
     expect(scrollable.position.pixels, greaterThan(0));
     expect(finishedLabel, findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
   });
 }

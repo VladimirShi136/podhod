@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'paper_lines.dart';
 
 /// Кнопка с «нарисованными от руки» неровными скруглениями.
 class NotebookButton extends StatelessWidget {
@@ -29,17 +30,30 @@ class NotebookButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = filled ? AppColors.paper : AppColors.ink;
-    return Material(
-      color: filled ? AppColors.ink : Colors.transparent,
-      shape: _shape,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: _shape,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          child: Center(
-            child: Text(label, style: AppText.body(20, color: fg)),
+    // Высота ровно две строки тетради (56 px): кнопка занимает целое число
+    // строк, и всё, что ниже, остаётся на линиях.
+    return SizedBox(
+      height: 2 * kLine,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Material(
+          color: filled ? AppColors.ink : Colors.transparent,
+          shape: _shape,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            customBorder: _shape,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.body(20, color: fg),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -56,7 +70,7 @@ class Stamp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Transform.rotate(
-      angle: -0.14,
+      angle: -0.035,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         decoration: BoxDecoration(

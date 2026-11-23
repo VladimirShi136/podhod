@@ -256,7 +256,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             label: 'Проверить звук',
             onPressed: () => _testSound(settings.activeRestSound),
           ),
-          const SizedBox(height: 8),
           LineText('Напоминания', style: AppText.hand(26)),
           SizedBox(
             height: 2 * kLine,
@@ -323,22 +322,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             label: 'Резервная копия (JSON)',
             onPressed: _exporting ? null : () => _export(ExportFormat.json),
           ),
-          const SizedBox(height: 8),
           NotebookButton(
             label: 'Восстановить из копии',
             onPressed: _exporting ? null : _restore,
           ),
-          const SizedBox(height: 8),
           NotebookButton(
             label: 'Таблица для Excel (CSV)',
             onPressed: _exporting ? null : () => _export(ExportFormat.csv),
           ),
-          TextButton.icon(
-            onPressed: _erase,
-            icon: const Icon(Icons.delete_outline, color: AppColors.red),
-            label: Text(
-              'Стереть все данные',
-              style: AppText.body(16, color: AppColors.red),
+          SizedBox(
+            height: 2 * kLine,
+            child: TextButton.icon(
+              onPressed: _erase,
+              icon: const Icon(Icons.delete_outline, color: AppColors.red),
+              label: Text(
+                'Стереть все данные',
+                style: AppText.body(16, color: AppColors.red),
+              ),
             ),
           ),
           LineText(

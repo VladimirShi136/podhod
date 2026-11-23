@@ -23,9 +23,11 @@ const _monthsGenitive = [
   'декабря',
 ];
 
-/// «Воскресенье, 15 ноября»
+/// «Воскресенье,
+/// 15 ноября»
 String formatDayTitle(DateTime date) =>
-    '${_weekdays[date.weekday - 1]}, ${date.day} ${_monthsGenitive[date.month - 1]}';
+    '${_weekdays[date.weekday - 1]},\n'
+    '${date.day} ${_monthsGenitive[date.month - 1]}';
 
 /// «15 ноября»
 String formatDayShort(DateTime date) =>

@@ -30,6 +30,9 @@ class TodayPage extends ConsumerStatefulWidget {
 
 class _TodayPageState extends ConsumerState<TodayPage>
     with WidgetsBindingObserver {
+  bool _exercisePickerOpen = false;
+  Set<int> _exerciseIdsWhenPickerOpened = {};
+
   @override
   void initState() {
     super.initState();
@@ -65,64 +68,92 @@ class _TodayPageState extends ConsumerState<TodayPage>
 
     return CustomScrollView(
       slivers: [
+        const SliverToBoxAdapter(child: SizedBox(height: kLine)),
         SliverToBoxAdapter(
           child: PageHeader(title: formatDayTitle(date), wrapTitle: true),
         ),
         SliverToBoxAdapter(
-          // каждая «строка» Wrap занимает ровно одну строку тетради
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 0,
-            children: [
-              LineText('Тренировка №$number', style: AppText.body(15)),
-              if (isToday && streak > 0)
-                SizedBox(
-                  height: kLine,
-                  // widthFactor: 1 — иначе Center растягивается на всю ширину
-                  // строки, и бейдж падает на следующую
-                  child: Center(
-                    widthFactor: 1,
-                    child: Sticker(
-                      '🔥 серия: $streak '
-                      '${plural(streak, 'день', 'дня', 'дней')}',
-                    ),
+          child: SizedBox(
+            height: kLine,
+            child: Row(
+              children: [
+                Expanded(
+                  child: LineText(
+                    'Тренировка №$number',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body(15),
                   ),
                 ),
-            ],
+                if (isToday && streak > 0) ...[
+                  const SizedBox(width: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Sticker(
+                          '🔥 серия: $streak '
+                          '${plural(streak, 'день', 'дня', 'дней')}',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
         SliverToBoxAdapter(
-          child: LineText(
-            isToday ? 'Сегодня' : formatDayShort(date),
-            style: AppText.hand(24),
-          ),
+          child: isToday
+              ? LineText('Сегодня', style: AppText.hand(24))
+              : const SizedBox(height: kLine),
         ),
+        if (isToday) const SliverToBoxAdapter(child: SizedBox(height: kLine)),
         if (details != null)
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
               final item = details.exercises[index];
-              return ExerciseRow(
-                key: ValueKey(item.entry.id),
-                details: item,
-                day: day,
-                onOpen: () => showExerciseSheet(
-                  context,
-                  entryId: item.entry.id,
+              final shouldAnimate =
+                  !_exercisePickerOpen ||
+                  _exerciseIdsWhenPickerOpened.contains(item.entry.id);
+              return TweenAnimationBuilder<double>(
+                key: ValueKey('${item.entry.id}-$shouldAnimate'),
+                tween: Tween(begin: shouldAnimate ? 0.0 : 1.0, end: 1.0),
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                builder: (context, progress, child) => ClipRect(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    heightFactor: progress,
+                    child: Opacity(opacity: progress, child: child),
+                  ),
+                ),
+                child: ExerciseRow(
+                  details: item,
                   day: day,
+                  onOpen: () => showExerciseSheet(
+                    context,
+                    entryId: item.entry.id,
+                    day: day,
+                  ),
                 ),
               );
             }, childCount: details.exercises.length),
           ),
+        if (details?.exercises.isNotEmpty == true)
+          const SliverToBoxAdapter(child: SizedBox(height: kLine)),
         SliverToBoxAdapter(
           child: SizedBox(
-            height: 56,
+            height: kLine,
             child: Align(
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => showExercisePicker(context, day: day),
-                child: Text(
+                onTap: () => _pickExercises(day),
+                child: LineText(
                   '+ добавить упражнение',
                   style: AppText.body(
                     19,
@@ -133,6 +164,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
             ),
           ),
         ),
+        const SliverToBoxAdapter(child: SizedBox(height: kLine)),
         if (workout != null && !isFuture)
           SliverToBoxAdapter(
             child: Column(
@@ -141,6 +173,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
                   mood: workout.mood,
                   onChanged: (m) => repo.setMood(workout.id, m),
                 ),
+                const SizedBox(height: kLine),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () async {
@@ -155,14 +188,14 @@ class _TodayPageState extends ConsumerState<TodayPage>
                     }
                   },
                   child: SizedBox(
-                    height: 56,
+                    height: kLine,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
+                      child: LineText(
                         workout.note.isEmpty
                             ? '✎ заметка…'
                             : '✎ ${workout.note}',
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.body(
                           17,
@@ -174,6 +207,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
                     ),
                   ),
                 ),
+                const SizedBox(height: kLine),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
                   transitionBuilder: _fadeSizeTransition,
@@ -190,8 +224,8 @@ class _TodayPageState extends ConsumerState<TodayPage>
               ],
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        if (isToday) const SliverToBoxAdapter(child: RestTimerBar()),
+        if (isToday)
+          const SliverToBoxAdapter(child: RestTimerBar(snapToLines: true)),
         SliverToBoxAdapter(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
@@ -201,7 +235,6 @@ class _TodayPageState extends ConsumerState<TodayPage>
                 const SizedBox.shrink(key: ValueKey('no-main-button')),
           ),
         ),
-        if (!isToday) const SliverToBoxAdapter(child: SizedBox(height: 10)),
         if (!isToday)
           SliverToBoxAdapter(
             child: NotebookButton(
@@ -211,9 +244,26 @@ class _TodayPageState extends ConsumerState<TodayPage>
                   ref.read(selectedDayProvider.notifier).select(todayKey),
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+        const SliverToBoxAdapter(child: SizedBox(height: kLine)),
       ],
     );
+  }
+
+  Future<void> _pickExercises(String day) async {
+    _exerciseIdsWhenPickerOpened =
+        ref
+            .read(workoutDayProvider)
+            .value
+            ?.exercises
+            .map((exercise) => exercise.entry.id)
+            .toSet() ??
+        {};
+    setState(() => _exercisePickerOpen = true);
+    try {
+      await showExercisePicker(context, day: day);
+    } finally {
+      if (mounted) setState(() => _exercisePickerOpen = false);
+    }
   }
 
   String _timeInfo(dynamic workout) {
@@ -241,7 +291,7 @@ class _TodayPageState extends ConsumerState<TodayPage>
       return NotebookButton(
         label: isFuture ? 'Запланировать тренировку' : 'Записать тренировку',
         filled: true,
-        onPressed: () => showExercisePicker(context, day: day),
+        onPressed: () => _pickExercises(day),
       );
     }
 
@@ -250,19 +300,36 @@ class _TodayPageState extends ConsumerState<TodayPage>
         key: const ValueKey('pick-exercises'),
         label: 'Начать тренировку',
         filled: true,
-        onPressed: () => showExercisePicker(context, day: day),
+        onPressed: () => _pickExercises(day),
       );
     }
     if (workout.finishedAt != null) {
       // Кнопки нет: если дописать упражнение или подход, тренировка
       // сама станет снова «идущей».
-      return Padding(
+      return SizedBox(
         key: const ValueKey('workout-finished'),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        height: 2 * kLine,
         child: Center(
-          child: Text(
-            'Тренировка завершена ✓',
-            style: AppText.hand(30, color: AppColors.red),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Тренировка завершена',
+                    style: AppText.hand(30, color: AppColors.red),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.check_rounded,
+                    color: AppColors.red,
+                    size: 28,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -298,9 +365,18 @@ class _TodayPageState extends ConsumerState<TodayPage>
             await repo.finishWorkout(workout.id);
           },
         ),
-        TextButton(
-          onPressed: () => repo.cancelWorkoutStart(workout.id),
-          child: Text('Отменить начало', style: AppText.body(16)),
+        SizedBox(
+          height: kLine,
+          child: TextButton(
+            onPressed: () => repo.cancelWorkoutStart(workout.id),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, kLine),
+              padding: EdgeInsets.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: LineText('Отменить начало', style: AppText.body(16)),
+          ),
         ),
       ],
     );
@@ -356,10 +432,10 @@ class _MoodRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 56,
+      height: kLine,
       child: Row(
         children: [
-          Text('Самочувствие', style: AppText.body(16)),
+          LineText('Самочувствие', style: AppText.body(16)),
           const SizedBox(width: 6),
           Expanded(
             child: FittedBox(
@@ -378,7 +454,7 @@ class _MoodRow extends StatelessWidget {
                           opacity: mood == null || mood == i + 1 ? 1 : 0.3,
                           child: Text(
                             _moods[i],
-                            style: const TextStyle(fontSize: 26),
+                            style: const TextStyle(fontSize: 22),
                           ),
                         ),
                       ),

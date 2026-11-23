@@ -9,8 +9,8 @@ import '../../data/providers.dart';
 import 'today_providers.dart';
 
 /// Открывает выбор упражнения для добавления в тренировку дня [day].
-Future<void> showExercisePicker(BuildContext context, {required String day}) {
-  return showModalBottomSheet<void>(
+Future<int?> showExercisePicker(BuildContext context, {required String day}) {
+  return showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.paper,
@@ -40,7 +40,7 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
     final workouts = ref.read(workoutRepositoryProvider);
     final workoutId = await workouts.ensureWorkout(widget.day);
     await workouts.addExercise(workoutId: workoutId, exerciseId: exerciseId);
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop(exerciseId);
   }
 
   Future<void> _addCustom() async {
@@ -49,11 +49,9 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
       builder: (_) => const _CustomExerciseDialog(),
     );
     if (result == null) return;
-    final id = await ref.read(exerciseRepositoryProvider).addCustom(
-          name: result.name,
-          group: result.group,
-          kind: result.kind,
-        );
+    final id = await ref
+        .read(exerciseRepositoryProvider)
+        .addCustom(name: result.name, group: result.group, kind: result.kind);
     await _add(id);
   }
 
@@ -90,7 +88,11 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _chip('Все', _group == null, () => setState(() => _group = null)),
+                _chip(
+                  'Все',
+                  _group == null,
+                  () => setState(() => _group = null),
+                ),
                 for (final g in MuscleGroup.values)
                   _chip(g.label, _group == g, () => setState(() => _group = g)),
               ],
@@ -113,8 +115,10 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
                     title: Text(e.name, style: AppText.body(19)),
                     subtitle: Text(
                       '${e.muscleGroup.label} · ${e.kind.label}',
-                      style: AppText.body(14,
-                          color: AppColors.ink.withValues(alpha: 0.65)),
+                      style: AppText.body(
+                        14,
+                        color: AppColors.ink.withValues(alpha: 0.65),
+                      ),
                     ),
                     onTap: () => _add(e.id),
                   );
@@ -223,8 +227,9 @@ class _CustomExerciseDialogState extends State<_CustomExerciseDialog> {
         TextButton(
           onPressed: _name.text.trim().isEmpty
               ? null
-              : () => Navigator.of(context)
-                  .pop(_CustomExercise(_name.text.trim(), _group, _kind)),
+              : () =>
+                    Navigator.of(context)
+                        .pop(_CustomExercise(_name.text.trim(), _group, _kind)),
           child: Text('Добавить', style: AppText.body(18)),
         ),
       ],

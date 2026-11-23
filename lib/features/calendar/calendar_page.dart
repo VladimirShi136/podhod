@@ -44,12 +44,14 @@ class CalendarPage extends ConsumerWidget {
                 _NavButton(
                   icon: Icons.chevron_left,
                   tooltip: 'Предыдущий месяц',
-                  onTap: () => ref.read(calendarMonthProvider.notifier).shift(-1),
+                  onTap: () =>
+                      ref.read(calendarMonthProvider.notifier).shift(-1),
                 ),
                 Expanded(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => ref.read(calendarMonthProvider.notifier).reset(),
+                    onTap: () =>
+                        ref.read(calendarMonthProvider.notifier).reset(),
                     child: Text(
                       '${monthNames[month.month - 1]} ${month.year}',
                       textAlign: TextAlign.center,
@@ -60,7 +62,8 @@ class CalendarPage extends ConsumerWidget {
                 _NavButton(
                   icon: Icons.chevron_right,
                   tooltip: 'Следующий месяц',
-                  onTap: () => ref.read(calendarMonthProvider.notifier).shift(1),
+                  onTap: () =>
+                      ref.read(calendarMonthProvider.notifier).shift(1),
                 ),
               ],
             ),
@@ -74,8 +77,10 @@ class CalendarPage extends ConsumerWidget {
                     child: Center(
                       child: Text(
                         w,
-                        style: AppText.body(14,
-                            color: AppColors.ink.withValues(alpha: 0.6)),
+                        style: AppText.body(
+                          14,
+                          color: AppColors.ink.withValues(alpha: 0.6),
+                        ),
                       ),
                     ),
                   ),
@@ -91,14 +96,17 @@ class CalendarPage extends ConsumerWidget {
                     Expanded(
                       child: _DayCell(
                         date: cells[row * 7 + col],
-                        hasWorkout: cells[row * 7 + col] != null &&
-                            workoutDays
-                                .contains(dayKey(cells[row * 7 + col]!)),
-                        isDone: cells[row * 7 + col] != null &&
+                        hasWorkout:
+                            cells[row * 7 + col] != null &&
+                            workoutDays.contains(dayKey(cells[row * 7 + col]!)),
+                        isDone:
+                            cells[row * 7 + col] != null &&
                             done.contains(dayKey(cells[row * 7 + col]!)),
-                        isToday: cells[row * 7 + col] != null &&
+                        isToday:
+                            cells[row * 7 + col] != null &&
                             dayKey(cells[row * 7 + col]!) == todayKey,
-                        isSelected: cells[row * 7 + col] != null &&
+                        isSelected:
+                            cells[row * 7 + col] != null &&
                             dayKey(cells[row * 7 + col]!) == selected,
                         onTap: (d) {
                           ref
@@ -130,7 +138,11 @@ class CalendarPage extends ConsumerWidget {
               _Legend(color: AppColors.accent, text: 'выполнено'),
               _Legend(color: null, text: 'запланировано'),
               _Legend(color: AppColors.red, text: 'сегодня', ring: true),
-              _Legend(color: AppColors.red, text: 'открыт на «Сегодня»', underline: true),
+              _Legend(
+                color: AppColors.red,
+                text: 'открыт на «Сегодня»',
+                underline: true,
+              ),
             ],
           ),
           const SizedBox(height: kLine),
@@ -188,8 +200,8 @@ class _DayCell extends StatelessWidget {
     final Color borderColor = isToday
         ? AppColors.red
         : hasWorkout
-            ? AppColors.ink
-            : Colors.transparent;
+        ? AppColors.ink
+        : Colors.transparent;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -202,19 +214,17 @@ class _DayCell extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: fill,
-            border: Border.all(
-              color: borderColor,
-              width: isToday ? 2.5 : 1.6,
-            ),
+            border: Border.all(color: borderColor, width: isToday ? 2.5 : 1.6),
           ),
-          child: Text(
-            '${d.day}',
-            style: AppText.hand(
-              isSelected ? 28 : 24,
-            ).copyWith(
-              decoration: isSelected ? TextDecoration.underline : null,
-              decorationColor: AppColors.red,
-              decorationThickness: 2,
+          child: Transform.translate(
+            offset: const Offset(0, -8),
+            child: Text(
+              '${d.day}',
+              style: AppText.hand(isSelected ? 28 : 24).copyWith(
+                decoration: isSelected ? TextDecoration.underline : null,
+                decorationColor: AppColors.red,
+                decorationThickness: 2,
+              ),
             ),
           ),
         ),
@@ -241,34 +251,34 @@ class _Legend extends StatelessWidget {
     return SizedBox(
       height: kLine,
       child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (underline)
-          Text(
-            '12',
-            style: AppText.hand(18).copyWith(
-              decoration: TextDecoration.underline,
-              decorationColor: AppColors.red,
-              decorationThickness: 2,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (underline)
+            Text(
+              '12',
+              style: AppText.hand(18).copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.red,
+                decorationThickness: 2,
+              ),
+            )
+          else
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: ring ? null : color,
+                border: Border.all(
+                  color: ring ? color! : AppColors.ink,
+                  width: ring ? 2.5 : 1.4,
+                ),
+              ),
             ),
-          )
-        else
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: ring ? null : color,
-            border: Border.all(
-              color: ring ? color! : AppColors.ink,
-              width: ring ? 2.5 : 1.4,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(text, style: AppText.body(14)),
-      ],
-    ),
+          const SizedBox(width: 6),
+          Text(text, style: AppText.body(14)),
+        ],
+      ),
     );
   }
 }

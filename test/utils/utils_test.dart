@@ -21,7 +21,10 @@ void main() {
     expect(currentStreak(['2026-11-14', '2026-11-13'], today), 2);
     expect(currentStreak(['2026-11-13'], today), 0);
     // граница месяца
-    expect(currentStreak(['2026-11-01', '2026-10-31'], DateTime(2026, 11, 1)), 2);
+    expect(
+      currentStreak(['2026-11-01', '2026-10-31'], DateTime(2026, 11, 1)),
+      2,
+    );
   });
 
   test('workoutNumber', () {
@@ -31,7 +34,7 @@ void main() {
   });
 
   test('formatDayTitle', () {
-    expect(formatDayTitle(DateTime(2026, 11, 15)), 'Воскресенье, 15 ноября');
+    expect(formatDayTitle(DateTime(2026, 11, 15)), 'Воскресенье,\n15 ноября');
     expect(formatTime(DateTime(2026, 1, 1, 9, 5)), '09:05');
   });
 }
