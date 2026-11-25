@@ -52,10 +52,15 @@ class CalendarPage extends ConsumerWidget {
                     behavior: HitTestBehavior.opaque,
                     onTap: () =>
                         ref.read(calendarMonthProvider.notifier).reset(),
-                    child: Text(
-                      '${monthNames[month.month - 1]} ${month.year}',
-                      textAlign: TextAlign.center,
-                      style: AppText.hand(32),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${monthNames[month.month - 1]} ${month.year}',
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        style: AppText.hand(28),
+                      ),
                     ),
                   ),
                 ),
@@ -207,24 +212,38 @@ class _DayCell extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => onTap(d),
       child: Center(
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: fill,
-            border: Border.all(color: borderColor, width: isToday ? 2.5 : 1.6),
-          ),
-          child: Transform.translate(
-            offset: const Offset(0, -8),
-            child: Text(
-              '${d.day}',
-              style: AppText.hand(isSelected ? 28 : 24).copyWith(
-                decoration: isSelected ? TextDecoration.underline : null,
-                decorationColor: AppColors.red,
-                decorationThickness: 2,
-              ),
+        child: Transform.translate(
+          offset: const Offset(0, -12),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Transform.translate(
+                  offset: const Offset(2, 3),
+                  child: SizedBox.expand(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: fill,
+                        border: Border.all(
+                          color: borderColor,
+                          width: isToday ? 2.5 : 1.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Text(
+                  '${d.day}',
+                  style: AppText.hand(isSelected ? 28 : 24).copyWith(
+                    decoration: isSelected ? TextDecoration.underline : null,
+                    decorationColor: AppColors.red,
+                    decorationThickness: 2,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

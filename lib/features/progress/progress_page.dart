@@ -52,9 +52,10 @@ class ProgressPage extends ConsumerWidget {
               ),
             )
           else ...[
-            _Totals(totals: data.totals),
-            LineText('Рекорды', style: AppText.hand(28)),
             const SizedBox(height: kLine),
+            _Totals(totals: data.totals),
+            const SizedBox(height: kLine),
+            LineText('Рекорды', style: AppText.hand(28)),
             for (final e in data.exercises)
               _RecordRow(
                 progress: e,
@@ -78,16 +79,13 @@ class _Totals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // три строки тетради: число на двух, подпись на третьей
+    // две строки тетради: число и подпись.
     Widget cell(int n, String label) => Expanded(
       child: SizedBox(
-        height: 3 * kLine,
+        height: 2 * kLine,
         child: Column(
           children: [
-            SizedBox(
-              height: 2 * kLine,
-              child: Center(child: Text('$n', style: AppText.hand(40))),
-            ),
+            LineText('$n', style: AppText.hand(34)),
             LineText(
               label,
               maxLines: 1,

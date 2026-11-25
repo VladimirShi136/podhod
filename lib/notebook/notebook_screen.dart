@@ -111,8 +111,13 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen>
   }
 
   // Страницы с бумагой создаются один раз, чтобы не перестраиваться на каждом кадре.
+  late final List<ScrollController> _pageScrolls = [
+    for (final _ in _defs) ScrollController(),
+  ];
+
   late final List<Widget> _papers = [
-    for (final d in _defs) PaperPage(child: d.page),
+    for (var i = 0; i < _defs.length; i++)
+      PaperPage(scrollController: _pageScrolls[i], child: _defs[i].page),
   ];
 
   late final List<BookmarkTab> _tabs = [
@@ -139,6 +144,9 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen>
     _pos.dispose();
     _load.dispose();
     _intro.dispose();
+    for (final controller in _pageScrolls) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -259,20 +267,27 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen>
               ],
             ),
             child: ClipRRect(
-            borderRadius: _bookRadius,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const ColoredBox(color: Color(0xFFD8D0BE)),
-                AnimatedBuilder(
-                  animation: _pos,
-                  builder: (context, _) => _buildPages(),
-                ),
-                const IgnorePointer(
-                  child: CustomPaint(painter: SpiralPainter()),
-                ),
-              ],
-            ),
+              borderRadius: _bookRadius,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: Color(0xFFD8D0BE)),
+                  AnimatedBuilder(
+                    animation: _pos,
+                    builder: (context, _) => _buildPages(),
+                  ),
+                  AnimatedBuilder(
+                    animation: _pos,
+                    builder: (context, _) => IgnorePointer(
+                      child: CustomPaint(
+                        painter: SpiralPainter(
+                          scroll: _pageScrolls[_pos.value.round()],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

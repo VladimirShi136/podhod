@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../core/widgets/paper_lines.dart';
+
+const double _ringWidth = 44;
+const double _ringHeight = 12;
+const double _firstLineY = 40;
+const double _ringStep = 2 * kLine;
+const double _firstRingY = _firstLineY + kLine - _ringHeight / 2 - kLine / 2;
+
 /// Металлическая спираль вдоль левого края тетради.
 class SpiralPainter extends CustomPainter {
-  const SpiralPainter();
+  const SpiralPainter({this.scroll}) : super(repaint: scroll);
 
-  static const double _step = 34;
-  static const double _ringWidth = 44;
-  static const double _ringHeight = 12;
+  final ScrollController? scroll;
+
+  double get _offset {
+    final controller = scroll;
+    if (controller == null || controller.positions.length != 1) return 0;
+    return controller.offset;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -25,7 +37,7 @@ class SpiralPainter extends CustomPainter {
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2);
     final hole = Paint()..color = const Color(0xCC2A2118);
 
-    for (var y = 14.0; y < size.height - _ringHeight; y += _step) {
+    for (final y in spiralRingYs(height: size.height, scrollOffset: _offset)) {
       final ring = RRect.fromRectAndRadius(
         Rect.fromLTWH(4, y, _ringWidth, _ringHeight),
         const Radius.circular(8),
@@ -46,12 +58,34 @@ class SpiralPainter extends CustomPainter {
 
       // отверстие в бумаге, в которое уходит кольцо
       canvas.drawOval(
-        Rect.fromCenter(center: Offset(7, y + _ringHeight / 2), width: 10, height: 8),
+        Rect.fromCenter(
+          center: Offset(7, y + _ringHeight / 2),
+          width: 10,
+          height: 8,
+        ),
         hole,
       );
     }
   }
 
   @override
-  bool shouldRepaint(SpiralPainter oldDelegate) => false;
+  bool shouldRepaint(SpiralPainter oldDelegate) => oldDelegate.scroll != scroll;
+}
+
+/// Ring positions half a line above every second ruled line.
+List<double> spiralRingYs({
+  required double height,
+  required double scrollOffset,
+}) {
+  var y = _firstRingY - scrollOffset;
+  if (y + _ringHeight <= 0) {
+    final skip = ((-y - _ringHeight) / _ringStep).ceil();
+    y += skip * _ringStep;
+  }
+
+  final ys = <double>[];
+  for (; y < height; y += _ringStep) {
+    ys.add(y);
+  }
+  return ys;
 }

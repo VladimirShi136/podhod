@@ -9,17 +9,19 @@ import '../theme/app_colors.dart';
 /// контроллер (через PrimaryScrollController), а рисунок линий следит за его
 /// смещением. Поэтому любой вертикальный список или SingleChildScrollView
 /// внутри страницы листается «вместе с бумагой» без дополнительного кода.
-/// Красное поле, тень и спираль остаются на месте как часть переплёта.
+/// Красное поле и тень остаются на месте как часть переплёта.
 class PaperPage extends StatefulWidget {
   const PaperPage({
     super.key,
     required this.child,
+    this.scrollController,
     // Верх 12: первая линия (y = 40) приходится на 28 px от начала содержимого,
     // поэтому блоки высотой кратной 28 лежат ровно между линиями.
     this.padding = const EdgeInsets.fromLTRB(66, 12, 16, 12),
   });
 
   final Widget child;
+  final ScrollController? scrollController;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -27,7 +29,10 @@ class PaperPage extends StatefulWidget {
 }
 
 class PaperPageState extends State<PaperPage> {
-  final ScrollController _scroll = ScrollController();
+  ScrollController? _localScroll;
+
+  ScrollController get _scroll =>
+      widget.scrollController ?? (_localScroll ??= ScrollController());
 
   /// Насколько содержимое страницы прокручено вверх (для тестов).
   @visibleForTesting
@@ -36,7 +41,7 @@ class PaperPageState extends State<PaperPage> {
 
   @override
   void dispose() {
-    _scroll.dispose();
+    _localScroll?.dispose();
     super.dispose();
   }
 

@@ -28,7 +28,7 @@ class PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = NotebookScope.of(context);
     final titleRow = Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           // заголовок стоит на линии, каждая его строка — одна строка тетради
@@ -41,8 +41,8 @@ class PageHeader extends StatelessWidget {
         ),
         // «назад» стоит там же, где на других страницах шестерёнка
         if (showBack)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
+          Transform.translate(
+            offset: const Offset(0, -5),
             child: _CircleButton(
               icon: Icons.arrow_back,
               tooltip: 'Назад',
@@ -50,8 +50,8 @@ class PageHeader extends StatelessWidget {
             ),
           )
         else if (showGear)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
+          Transform.translate(
+            offset: const Offset(0, -5),
             child: _CircleButton(
               icon: Icons.settings_outlined,
               tooltip: 'Настройки',
@@ -64,10 +64,16 @@ class PageHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // две строки тетради, а если заголовок длинный — столько, сколько нужно
+        // Обычные заголовки стоят на второй линейке; переносимый заголовок
+        // Today начинает с первой строки даты.
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 2 * kLine),
-          child: titleRow,
+          child: wrapTitle
+              ? titleRow
+              : Padding(
+                  padding: const EdgeInsets.only(top: kLine / 2),
+                  child: titleRow,
+                ),
         ),
         if (subtitle != null)
           LineText(
